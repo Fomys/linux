@@ -588,7 +588,7 @@ static void planar_yuv_read_line(const struct vkms_plane_state *plane, int x_sta
  * The following functions take one &struct pixel_argb_u16 and convert it to a specific format.
  * The result is stored in @out_pixel.
  *
- * They are used in vkms_writeback_row() to convert and store a pixel from the src_buffer to
+ * They are used in the `write_line` functions to convert and store a pixel from the src_buffer to
  * the writeback buffer.
  */
 static void argb_u16_to_ARGB8888(u8 *out_pixel, const struct pixel_argb_u16 *in_pixel)
@@ -663,28 +663,113 @@ static void argb_u16_to_RGB565(u8 *out_pixel, const struct pixel_argb_u16 *in_pi
 	*pixel = cpu_to_le16(r << 11 | g << 5 | b);
 }
 
-/**
- * vkms_writeback_row() - Generic loop for all supported writeback format. It is executed just
- * after the blending to write a line in the writeback buffer.
+/*
+ * The following functions are write_line function for each pixel format supported by VKMS.
  *
- * @wb: Job where to insert the final image
- * @src_buffer: Line to write
- * @y: Row to write in the writeback buffer
+ * They write a full line at index y. They must read data from the line src_pixels.
+ *
+ * The caller must ensure that count is not larger than the framebuffer and the src_pixels.
+ *
+ * Those function are very similar, but it is required for performance reason. In the past, some
+ * experiment were done, and with a generic loop the performance are very reduced [1].
+ *
+ * [1]: https://lore.kernel.org/dri-devel/d258c8dc-78e9-4509-9037-a98f7f33b3a3@riseup.net/
  */
-void vkms_writeback_row(struct vkms_writeback_job *wb,
-			const struct line_buffer *src_buffer, int y)
+
+static void ARGB8888_write_line(struct vkms_writeback_job *wb,
+				struct pixel_argb_u16 *src_pixels, int count, int x_start,
+				int y_start)
 {
-	struct vkms_frame_info *frame_info = &wb->wb_frame_info;
-	int x_dst = frame_info->dst.x1;
 	u8 *dst_pixels;
-	int rem_x, rem_y;
 
-	packed_pixels_addr(frame_info, x_dst, y, 0, &dst_pixels, &rem_x, &rem_y);
-	struct pixel_argb_u16 *in_pixels = src_buffer->pixels;
-	int x_limit = min_t(size_t, drm_rect_width(&frame_info->dst), src_buffer->n_pixels);
+	packed_pixels_addr_1x1(&wb->wb_frame_info, x_start, y_start, 0, &dst_pixels);
 
-	for (size_t x = 0; x < x_limit; x++, dst_pixels += frame_info->fb->format->cpp[0])
-		wb->pixel_write(dst_pixels, &in_pixels[x]);
+	while (count) {
+		argb_u16_to_ARGB8888(dst_pixels, src_pixels);
+		dst_pixels += wb->wb_frame_info.fb->format->char_per_block[0];
+		src_pixels += 1;
+		count--;
+	}
+}
+
+static void XRGB8888_write_line(struct vkms_writeback_job *wb,
+				struct pixel_argb_u16 *src_pixels, int count, int x_start,
+				int y_start)
+{
+	u8 *dst_pixels;
+
+	packed_pixels_addr_1x1(&wb->wb_frame_info, x_start, y_start, 0, &dst_pixels);
+
+	while (count) {
+		argb_u16_to_XRGB8888(dst_pixels, src_pixels);
+		dst_pixels += wb->wb_frame_info.fb->format->char_per_block[0];
+		src_pixels += 1;
+		count--;
+	}
+}
+
+static void ABGR8888_write_line(struct vkms_writeback_job *wb,
+				struct pixel_argb_u16 *src_pixels, int count, int x_start,
+				int y_start)
+{
+	u8 *dst_pixels;
+
+	packed_pixels_addr_1x1(&wb->wb_frame_info, x_start, y_start, 0, &dst_pixels);
+
+	while (count) {
+		argb_u16_to_ABGR8888(dst_pixels, src_pixels);
+		dst_pixels += wb->wb_frame_info.fb->format->char_per_block[0];
+		src_pixels += 1;
+		count--;
+	}
+}
+
+static void ARGB16161616_write_line(struct vkms_writeback_job *wb,
+				    struct pixel_argb_u16 *src_pixels, int count, int x_start,
+				    int y_start)
+{
+	u8 *dst_pixels;
+
+	packed_pixels_addr_1x1(&wb->wb_frame_info, x_start, y_start, 0, &dst_pixels);
+
+	while (count) {
+		argb_u16_to_ARGB16161616(dst_pixels, src_pixels);
+		dst_pixels += wb->wb_frame_info.fb->format->char_per_block[0];
+		src_pixels += 1;
+		count--;
+	}
+}
+
+static void XRGB16161616_write_line(struct vkms_writeback_job *wb,
+				    struct pixel_argb_u16 *src_pixels, int count, int x_start,
+				    int y_start)
+{
+	u8 *dst_pixels;
+
+	packed_pixels_addr_1x1(&wb->wb_frame_info, x_start, y_start, 0, &dst_pixels);
+
+	while (count) {
+		argb_u16_to_XRGB16161616(dst_pixels, src_pixels);
+		dst_pixels += wb->wb_frame_info.fb->format->char_per_block[0];
+		src_pixels += 1;
+		count--;
+	}
+}
+
+static void RGB565_write_line(struct vkms_writeback_job *wb,
+			      struct pixel_argb_u16 *src_pixels, int count, int x_start,
+			      int y_start)
+{
+	u8 *dst_pixels;
+
+	packed_pixels_addr_1x1(&wb->wb_frame_info, x_start, y_start, 0, &dst_pixels);
+
+	while (count) {
+		argb_u16_to_RGB565(dst_pixels, src_pixels);
+		dst_pixels += wb->wb_frame_info.fb->format->char_per_block[0];
+		src_pixels += 1;
+		count--;
+	}
 }
 
 /**
@@ -946,27 +1031,29 @@ void get_conversion_matrix_to_argb_u16(u32 format,
 EXPORT_SYMBOL(get_conversion_matrix_to_argb_u16);
 
 /**
- * get_pixel_write_function() - Retrieve the correct write_pixel function for a specific format.
+ * get_pixel_write_line_function() - Retrieve the correct write_line function for a specific
+ * format.
+ *
  * The returned pointer is NULL for unsupported pixel formats. The caller must ensure that the
  * pointer is valid before using it in a vkms_writeback_job.
  *
  * @format: DRM_FORMAT_* value for which to obtain a conversion function (see [drm_fourcc.h])
  */
-pixel_write_t get_pixel_write_function(u32 format)
+pixel_write_line_t get_pixel_write_line_function(u32 format)
 {
 	switch (format) {
 	case DRM_FORMAT_ARGB8888:
-		return &argb_u16_to_ARGB8888;
+		return &ARGB8888_write_line;
 	case DRM_FORMAT_XRGB8888:
-		return &argb_u16_to_XRGB8888;
+		return &XRGB8888_write_line;
 	case DRM_FORMAT_ABGR8888:
-		return &argb_u16_to_ABGR8888;
+		return &ABGR8888_write_line;
 	case DRM_FORMAT_ARGB16161616:
-		return &argb_u16_to_ARGB16161616;
+		return &ARGB16161616_write_line;
 	case DRM_FORMAT_XRGB16161616:
-		return &argb_u16_to_XRGB16161616;
+		return &XRGB16161616_write_line;
 	case DRM_FORMAT_RGB565:
-		return &argb_u16_to_RGB565;
+		return &RGB565_write_line;
 	default:
 		/*
 		 * This is a bug in vkms_writeback_atomic_check. All the supported
