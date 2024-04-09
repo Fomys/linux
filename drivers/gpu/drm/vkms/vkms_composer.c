@@ -177,6 +177,23 @@ static enum pixel_read_direction direction_for_rotation(unsigned int rotation)
 }
 
 /**
+ * vkms_writeback_row() - Write a line to the writeback buffer
+ *
+ * @wb: Job where to insert the final image
+ * @src_buffer: Line to write
+ * @y: Row to write in the writeback buffer
+ */
+static void vkms_writeback_row(struct vkms_writeback_job *wb,
+			       const struct line_buffer *src_buffer, size_t y_start)
+{
+	struct vkms_frame_info *frame_info = &wb->wb_frame_info;
+	int x_start = frame_info->dst.x1;
+	int count = min_t(size_t, drm_rect_width(&frame_info->dst), src_buffer->n_pixels);
+
+	wb->pixel_write(wb, src_buffer->pixels, count, x_start, y_start);
+}
+
+/**
  * clamp_line_coordinates() - Compute and clamp the coordinate to read and write during the blend
  * process.
  *
