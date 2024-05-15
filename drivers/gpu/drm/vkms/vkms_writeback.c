@@ -13,7 +13,6 @@
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_framebuffer.h>
 
-#include "vkms_drv.h"
 #include "vkms_writeback.h"
 #include "vkms_formats.h"
 

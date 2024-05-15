@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0+
 
-#include "vkms_drv.h"
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_probe_helper.h>
 
 #include "vkms_writeback.h"
+#include "vkms_plane.h"
 
 static const struct drm_connector_funcs vkms_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,

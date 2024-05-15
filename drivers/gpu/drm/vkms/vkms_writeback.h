@@ -5,6 +5,7 @@
 
 #include "vkms_drv.h"
 #include "vkms_formats.h"
+#include "vkms_plane.h"
 
 struct vkms_crtc;
 

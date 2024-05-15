@@ -11,8 +11,9 @@
 
 #include <kunit/visibility.h>
 
-#include "vkms_writeback.h"
+#include "vkms_plane.h"
 #include "vkms_formats.h"
+#include "vkms_writeback.h"
 
 /**
  * packed_pixels_offset() - Get the offset of the block containing the pixel at coordinates x/y
