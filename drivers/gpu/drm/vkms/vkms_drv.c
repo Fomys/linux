@@ -39,7 +39,7 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
-static struct vkms_config *default_config;
+struct vkms_device *default_device;
 
 static bool enable_cursor = true;
 module_param_named(enable_cursor, enable_cursor, bool, 0444);
@@ -284,7 +284,7 @@ static int vkms_modeset_init(struct vkms_device *vkmsdev, struct vkms_config *vk
 	return vkms_output_init(vkmsdev, 0, vkms_config);
 }
 
-static int vkms_create(struct vkms_config *config)
+static struct vkms_device *vkms_create(struct vkms_config *config)
 {
 	int ret;
 	struct platform_device *pdev;
@@ -292,7 +292,7 @@ static int vkms_create(struct vkms_config *config)
 
 	pdev = platform_device_register_simple(DRIVER_NAME, -1, NULL, 0);
 	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
+		return ERR_CAST(pdev);
 
 	vkms_device = devm_drm_dev_alloc(&pdev->dev, &vkms_driver,
 					 struct vkms_device, drm);
@@ -330,59 +330,32 @@ static int vkms_create(struct vkms_config *config)
 
 	drm_fbdev_shmem_setup(&vkms_device->drm, 0);
 
-	return 0;
+	return vkms_device;
 
 out_unregister:
 	platform_device_unregister(pdev);
-	return ret;
+	return ERR_PTR(ret);
 }
 
 static int __init vkms_init(void)
 {
-	int ret;
-	struct vkms_config *config;
+	struct vkms_config vkms_config = {
+		.cursor = enable_cursor,
+		.writeback = enable_writeback,
+		.overlay = enable_overlay
+	};
 
-	config = kmalloc(sizeof(*config), GFP_KERNEL);
-	if (!config)
-		return -ENOMEM;
+	default_device = vkms_create(&vkms_config);
 
-	default_config = config;
-
-	config->cursor = enable_cursor;
-	config->writeback = enable_writeback;
-	config->overlay = enable_overlay;
-
-	ret = vkms_create(config);
-	if (ret)
-		kfree(config);
-
-	return ret;
-}
-
-static void vkms_destroy(struct vkms_config *config)
-{
-	struct platform_device *pdev;
-
-	if (!config->dev) {
-		DRM_INFO("vkms_device is NULL.\n");
-		return;
-	}
-
-	pdev = config->dev->platform;
-
-	drm_dev_unregister(&config->dev->drm);
-	drm_atomic_helper_shutdown(&config->dev->drm);
-	platform_device_unregister(pdev);
-
-	config->dev = NULL;
+	return PTR_ERR_OR_ZERO(default_device);
 }
 
 static void __exit vkms_exit(void)
 {
-	if (default_config->dev)
-		vkms_destroy(default_config);
-
-	kfree(default_config);
+	drm_dev_unregister(&default_device->drm);
+	drm_atomic_helper_shutdown(&default_device->drm);
+	if (default_device)
+		platform_device_unregister(default_device->platform);
 }
 
 module_init(vkms_init);
