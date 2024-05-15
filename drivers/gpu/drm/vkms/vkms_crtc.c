@@ -9,6 +9,7 @@
 #include <drm/drm_print.h>
 
 #include "vkms_crtc.h"
+#include "vkms_composer.h"
 #include "vkms_plane.h"
 
 static enum hrtimer_restart vkms_vblank_simulate(struct hrtimer *timer)

@@ -106,15 +106,4 @@ struct vkms_device {
 
 int vkms_output_init(struct vkms_device *vkmsdev, int possible_crtc_index);
 
-/* CRC Support */
-const char *const *vkms_get_crc_sources(struct drm_crtc *crtc,
-					size_t *count);
-int vkms_set_crc_source(struct drm_crtc *crtc, const char *src_name);
-int vkms_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
-			   size_t *values_cnt);
-
-/* Composer Support */
-void vkms_composer_worker(struct work_struct *work);
-void vkms_set_composer(struct vkms_output *out, bool enabled);
-
 #endif /* _VKMS_DRV_H_ */

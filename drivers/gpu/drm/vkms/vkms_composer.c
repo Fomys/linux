@@ -10,7 +10,9 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_vblank.h>
 #include <linux/minmax.h>
+#include <drm/drm_print.h>
 
+#include "vkms_composer.h"
 #include "vkms_crtc.h"
 #include "vkms_writeback.h"
 

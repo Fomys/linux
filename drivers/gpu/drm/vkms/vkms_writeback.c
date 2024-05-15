@@ -16,6 +16,7 @@
 #include "vkms_writeback.h"
 #include "vkms_crtc.h"
 #include "vkms_formats.h"
+#include "vkms_composer.h"
 
 static const u32 vkms_wb_formats[] = {
 	DRM_FORMAT_ARGB8888,
