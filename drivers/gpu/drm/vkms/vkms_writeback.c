@@ -11,8 +11,10 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_shmem_helper.h>
+#include <drm/drm_framebuffer.h>
 
 #include "vkms_drv.h"
+#include "vkms_writeback.h"
 #include "vkms_formats.h"
 
 static const u32 vkms_wb_formats[] = {

@@ -46,13 +46,6 @@ struct vkms_frame_info {
 };
 
 
-struct vkms_writeback_job {
-	struct iosys_map data[DRM_FORMAT_MAX_PLANES];
-	struct vkms_frame_info wb_frame_info;
-	pixel_write_line_t pixel_write;
-};
-
-
 struct vkms_plane_state;
 
 
@@ -224,8 +217,5 @@ int vkms_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
 /* Composer Support */
 void vkms_composer_worker(struct work_struct *work);
 void vkms_set_composer(struct vkms_output *out, bool enabled);
-
-/* Writeback */
-int vkms_enable_writeback_connector(struct vkms_device *vkmsdev);
 
 #endif /* _VKMS_DRV_H_ */

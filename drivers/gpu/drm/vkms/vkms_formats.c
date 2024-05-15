@@ -11,7 +11,7 @@
 
 #include <kunit/visibility.h>
 
-#include "vkms_drv.h"
+#include "vkms_writeback.h"
 #include "vkms_formats.h"
 
 /**
