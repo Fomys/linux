@@ -6,6 +6,7 @@
 
 #include "vkms_writeback.h"
 #include "vkms_plane.h"
+#include "vkms_crtc.h"
 
 static const struct drm_connector_funcs vkms_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,

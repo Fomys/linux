@@ -8,7 +8,6 @@
 #include <drm/drm_gem_atomic_helper.h>
 #include <linux/iosys-map.h>
 
-#include "vkms_drv.h"
 #include "vkms_formats.h"
 
 struct vkms_plane {

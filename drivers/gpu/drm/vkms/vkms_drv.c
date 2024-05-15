@@ -27,6 +27,7 @@
 #include <drm/drm_vblank.h>
 
 #include "vkms_drv.h"
+#include "vkms_crtc.h"
 
 #include <drm/drm_print.h>
 #include <drm/drm_debugfs.h>

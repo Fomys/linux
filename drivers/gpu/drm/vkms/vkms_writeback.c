@@ -14,6 +14,7 @@
 #include <drm/drm_framebuffer.h>
 
 #include "vkms_writeback.h"
+#include "vkms_crtc.h"
 #include "vkms_formats.h"
 
 static const u32 vkms_wb_formats[] = {
