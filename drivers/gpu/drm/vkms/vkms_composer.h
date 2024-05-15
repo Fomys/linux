@@ -7,7 +7,7 @@
 #include "vkms_crtc.h"
 
 void vkms_composer_worker(struct work_struct *work);
-void vkms_set_composer(struct vkms_crtc *out, bool enabled);
+void vkms_set_composer(struct vkms_crtc *vkms_crtc, bool enabled);
 
 /* CRC Support */
 const char *const *vkms_get_crc_sources(struct drm_crtc *crtc, size_t *count);
