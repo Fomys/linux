@@ -294,16 +294,11 @@ static int vkms_create(struct vkms_config *config)
 	if (IS_ERR(pdev))
 		return PTR_ERR(pdev);
 
-	if (!devres_open_group(&pdev->dev, NULL, GFP_KERNEL)) {
-		ret = -ENOMEM;
-		goto out_unregister;
-	}
-
 	vkms_device = devm_drm_dev_alloc(&pdev->dev, &vkms_driver,
 					 struct vkms_device, drm);
 	if (IS_ERR(vkms_device)) {
 		ret = PTR_ERR(vkms_device);
-		goto out_devres;
+		goto out_unregister;
 	}
 	vkms_device->platform = pdev;
 	config->dev = vkms_device;
@@ -313,32 +308,30 @@ static int vkms_create(struct vkms_config *config)
 
 	if (ret) {
 		DRM_ERROR("Could not initialize DMA support\n");
-		goto out_devres;
+		goto out_unregister;
 	}
 
 	ret = drm_vblank_init(&vkms_device->drm, 1);
 	if (ret) {
 		DRM_ERROR("Failed to vblank\n");
-		goto out_devres;
+		goto out_unregister;
 	}
 
 	ret = vkms_modeset_init(vkms_device, config);
 	if (ret)
-		goto out_devres;
+		goto out_unregister;
 
 	drm_debugfs_add_files(&vkms_device->drm, vkms_config_debugfs_list,
 			      ARRAY_SIZE(vkms_config_debugfs_list));
 
 	ret = drm_dev_register(&vkms_device->drm, 0);
 	if (ret)
-		goto out_devres;
+		goto out_unregister;
 
 	drm_fbdev_shmem_setup(&vkms_device->drm, 0);
 
 	return 0;
 
-out_devres:
-	devres_release_group(&pdev->dev, NULL);
 out_unregister:
 	platform_device_unregister(pdev);
 	return ret;
@@ -379,7 +372,6 @@ static void vkms_destroy(struct vkms_config *config)
 
 	drm_dev_unregister(&config->dev->drm);
 	drm_atomic_helper_shutdown(&config->dev->drm);
-	devres_release_group(&pdev->dev, NULL);
 	platform_device_unregister(pdev);
 
 	config->dev = NULL;
