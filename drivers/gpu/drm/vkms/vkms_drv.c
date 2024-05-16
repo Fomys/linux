@@ -33,6 +33,7 @@
 #include <drm/drm_edid.h>
 
 #include "vkms_device_drv.h"
+#include "vkms_configfs.h"
 
 #define DRIVER_NAME	"vkms"
 #define DRIVER_DESC	"Virtual Kernel Mode Setting"
@@ -192,10 +193,18 @@ err_alloc:
 
 static int __init vkms_platform_driver_init(void)
 {
-	int ret = platform_driver_register(&vkms_platform_driver);
+	int ret;
+
+	ret = platform_driver_register(&vkms_platform_driver);
 	if (ret) {
 		DRM_ERROR("Unable to register platform driver\n");
 		return ret;
+	}
+
+	ret = vkms_init_configfs();
+	if (ret) {
+		DRM_ERROR("Unable to initialize configfs\n");
+		goto fail_configfs;
 	}
 
 	ret = vkms_create_default_device();
@@ -206,6 +215,8 @@ static int __init vkms_platform_driver_init(void)
 	return 0;
 
 fail_device:
+	vkms_unregister_configfs();
+fail_configfs:
 	platform_driver_unregister(&vkms_platform_driver);
 	return ret;
 }
@@ -213,6 +224,8 @@ fail_device:
 static void __exit vkms_platform_driver_exit(void)
 {
 	struct device *dev;
+
+	vkms_unregister_configfs();
 
 	while ((dev = platform_find_device_by_driver(NULL, &vkms_platform_driver.driver))) {
 		// platform_find_device_by_driver increments the refcount. Drop
