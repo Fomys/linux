@@ -6,9 +6,12 @@
 #include <drm/drm_blend.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_fixed.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 
 #include <kunit/visibility.h>
 
+#include "vkms_drv.h"
 #include "vkms_formats.h"
 
 /**
