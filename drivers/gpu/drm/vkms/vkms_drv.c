@@ -91,9 +91,9 @@ static int vkms_config_show(struct seq_file *m, void *data)
 	struct drm_device *dev = entry->dev;
 	struct vkms_device *vkmsdev = drm_device_to_vkms_device(dev);
 
-	seq_printf(m, "writeback=%d\n", vkmsdev->config->writeback);
-	seq_printf(m, "cursor=%d\n", vkmsdev->config->cursor);
-	seq_printf(m, "overlay=%d\n", vkmsdev->config->overlay);
+	seq_printf(m, "writeback=%d\n", enable_writeback);
+	seq_printf(m, "cursor=%d\n", enable_cursor);
+	seq_printf(m, "overlay=%d\n", enable_overlay);
 
 	return 0;
 }
@@ -166,7 +166,8 @@ static const struct drm_connector_helper_funcs vkms_conn_helper_funcs = {
 	.get_modes = vkms_conn_get_modes,
 };
 
-static int vkms_output_init(struct vkms_device *vkmsdev, int possible_crtc)
+static int vkms_output_init(struct vkms_device *vkmsdev, int possible_crtc,
+			    struct vkms_config *vkms_config)
 {
 	struct drm_device *dev = &vkmsdev->drm;
 	struct drm_connector *connector;
@@ -188,7 +189,7 @@ static int vkms_output_init(struct vkms_device *vkmsdev, int possible_crtc)
 	if (IS_ERR(primary))
 		return PTR_ERR(primary);
 
-	if (vkmsdev->config->overlay) {
+	if (vkms_config->overlay) {
 		for (n = 0; n < NUM_OVERLAY_PLANES; n++) {
 			overlay = vkms_plane_init(vkmsdev, DRM_PLANE_TYPE_OVERLAY, possible_crtc);
 			if (IS_ERR(overlay))
@@ -196,7 +197,7 @@ static int vkms_output_init(struct vkms_device *vkmsdev, int possible_crtc)
 		}
 	}
 
-	if (vkmsdev->config->cursor) {
+	if (vkms_config->cursor) {
 		cursor = vkms_plane_init(vkmsdev, DRM_PLANE_TYPE_CURSOR, possible_crtc);
 		if (IS_ERR(cursor))
 			return PTR_ERR(cursor);
@@ -245,7 +246,7 @@ static int vkms_output_init(struct vkms_device *vkmsdev, int possible_crtc)
 	}
 
 	/* Initialize the writeback component */
-	if (vkmsdev->config->writeback) {
+	if (vkms_config->writeback) {
 		writeback = vkms_enable_writeback_connector(vkmsdev, crtc);
 		if (writeback)
 			DRM_ERROR("Failed to init writeback connector\n");
@@ -256,7 +257,7 @@ static int vkms_output_init(struct vkms_device *vkmsdev, int possible_crtc)
 	return 0;
 }
 
-static int vkms_modeset_init(struct vkms_device *vkmsdev)
+static int vkms_modeset_init(struct vkms_device *vkmsdev, struct vkms_config *vkms_config)
 {
 	struct drm_device *dev = &vkmsdev->drm;
 	int ret;
@@ -280,7 +281,7 @@ static int vkms_modeset_init(struct vkms_device *vkmsdev)
 	dev->mode_config.preferred_depth = 0;
 	dev->mode_config.helper_private = &vkms_mode_config_helpers;
 
-	return vkms_output_init(vkmsdev, 0);
+	return vkms_output_init(vkmsdev, 0, vkms_config);
 }
 
 static int vkms_create(struct vkms_config *config)
@@ -305,7 +306,6 @@ static int vkms_create(struct vkms_config *config)
 		goto out_devres;
 	}
 	vkms_device->platform = pdev;
-	vkms_device->config = config;
 	config->dev = vkms_device;
 
 	ret = dma_coerce_mask_and_coherent(vkms_device->drm.dev,
@@ -322,7 +322,7 @@ static int vkms_create(struct vkms_config *config)
 		goto out_devres;
 	}
 
-	ret = vkms_modeset_init(vkms_device);
+	ret = vkms_modeset_init(vkms_device, config);
 	if (ret)
 		goto out_devres;
 

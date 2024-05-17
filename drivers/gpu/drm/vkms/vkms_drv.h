@@ -46,12 +46,10 @@ struct vkms_config {
  * @drm - Base device in drm
  * @platform - Associated platform device
  * @output - Configuration and sub-components of the vkms device
- * @config: Configuration used in this vkms device
  */
 struct vkms_device {
 	struct drm_device drm;
 	struct platform_device *platform;
-	const struct vkms_config *config;
 };
 
 /*
