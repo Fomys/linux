@@ -3,9 +3,9 @@
 #ifndef _VKMS_WRITEBACK_H
 #define _VKMS_WRITEBACK_H
 
-#include "vkms_drv.h"
 #include "vkms_formats.h"
 #include "vkms_plane.h"
+#include "vkms_device_drv.h"
 
 struct vkms_crtc;
 

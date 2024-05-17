@@ -12,8 +12,8 @@
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_print.h>
 
-#include "vkms_drv.h"
 #include "vkms_formats.h"
+#include "vkms_device_drv.h"
 #include "vkms_plane.h"
 
 static const u32 vkms_formats[] = {

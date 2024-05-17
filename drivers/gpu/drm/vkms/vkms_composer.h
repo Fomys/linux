@@ -3,7 +3,6 @@
 #ifndef _VKMS_COMPOSER_H
 #define _VKMS_COMPOSER_H
 
-#include "vkms_drv.h"
 #include "vkms_crtc.h"
 
 void vkms_composer_worker(struct work_struct *work);

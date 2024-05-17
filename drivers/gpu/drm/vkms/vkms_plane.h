@@ -9,6 +9,7 @@
 #include <linux/iosys-map.h>
 
 #include "vkms_formats.h"
+#include "vkms_device_drv.h"
 
 struct vkms_plane {
 	struct drm_plane base;
