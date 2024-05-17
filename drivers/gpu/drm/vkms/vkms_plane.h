@@ -52,11 +52,9 @@ struct vkms_frame_info {
  *
  * @vkmsdev: vkms device containing the plane
  * @type: type of plane to initialize
- * @possible_crtc_index: Crtc which can be attached to the plane. The caller must ensure that
- * possible_crtc_index is positive and less or equals to 31.
  */
 struct vkms_plane *vkms_plane_init(struct vkms_device *vkmsdev,
-				   enum drm_plane_type type, int possible_crtc_index);
+				   enum drm_plane_type type);
 
 #define drm_plane_state_to_vkms_plane_state(target) \
 	container_of(target, struct vkms_plane_state, base.base)

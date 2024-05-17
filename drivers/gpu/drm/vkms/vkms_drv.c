@@ -166,7 +166,7 @@ static const struct drm_connector_helper_funcs vkms_conn_helper_funcs = {
 	.get_modes = vkms_conn_get_modes,
 };
 
-static int vkms_output_init(struct vkms_device *vkmsdev, int possible_crtc,
+static int vkms_output_init(struct vkms_device *vkmsdev,
 			    struct vkms_config *vkms_config)
 {
 	struct drm_device *dev = &vkmsdev->drm;
@@ -185,20 +185,20 @@ static int vkms_output_init(struct vkms_device *vkmsdev, int possible_crtc,
 	 * The overlay and cursor planes are not mandatory, but can be used to perform complex
 	 * composition.
 	 */
-	primary = vkms_plane_init(vkmsdev, DRM_PLANE_TYPE_PRIMARY, possible_crtc);
+	primary = vkms_plane_init(vkmsdev, DRM_PLANE_TYPE_PRIMARY);
 	if (IS_ERR(primary))
 		return PTR_ERR(primary);
 
 	if (vkms_config->overlay) {
 		for (n = 0; n < NUM_OVERLAY_PLANES; n++) {
-			overlay = vkms_plane_init(vkmsdev, DRM_PLANE_TYPE_OVERLAY, possible_crtc);
+			overlay = vkms_plane_init(vkmsdev, DRM_PLANE_TYPE_OVERLAY);
 			if (IS_ERR(overlay))
 				return PTR_ERR(overlay);
 		}
 	}
 
 	if (vkms_config->cursor) {
-		cursor = vkms_plane_init(vkmsdev, DRM_PLANE_TYPE_CURSOR, possible_crtc);
+		cursor = vkms_plane_init(vkmsdev, DRM_PLANE_TYPE_CURSOR);
 		if (IS_ERR(cursor))
 			return PTR_ERR(cursor);
 	}
@@ -281,7 +281,7 @@ static int vkms_modeset_init(struct vkms_device *vkmsdev, struct vkms_config *vk
 	dev->mode_config.preferred_depth = 0;
 	dev->mode_config.helper_private = &vkms_mode_config_helpers;
 
-	return vkms_output_init(vkmsdev, 0, vkms_config);
+	return vkms_output_init(vkmsdev, vkms_config);
 }
 
 static struct vkms_device *vkms_create(struct vkms_config *config)
