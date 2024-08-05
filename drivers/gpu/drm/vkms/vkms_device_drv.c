@@ -311,6 +311,8 @@ struct vkms_config_plane *vkms_config_create_plane(struct vkms_config *vkms_conf
 
 	vkms_config_overlay->name = NULL;
 	vkms_config_overlay->type = DRM_PLANE_TYPE_OVERLAY;
+	vkms_config_overlay->supported_rotations = DRM_MODE_ROTATE_MASK | DRM_MODE_REFLECT_MASK;
+	vkms_config_overlay->default_rotation = DRM_MODE_ROTATE_0;
 
 	list_add(&vkms_config_overlay->link, &vkms_config->planes);
 
@@ -344,6 +346,11 @@ bool vkms_config_is_valid(struct vkms_config *vkms_config)
 	bool has_primary = false;
 
 	list_for_each_entry(config_plane, &vkms_config->planes, link) {
+		// Default rotation not in supported rotations
+		if ((config_plane->default_rotation & config_plane->supported_rotations) !=
+		    config_plane->default_rotation)
+			return false;
+
 		if (config_plane->type == DRM_PLANE_TYPE_PRIMARY) {
 			// Multiple primary planes for only one CRTC
 			if (has_primary)
