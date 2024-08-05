@@ -294,6 +294,14 @@ struct platform_device *vkms_create_device(struct vkms_platform_data *pdata)
 }
 
 
+void vkms_delete_device(struct platform_device *pdev)
+{
+	struct vkms_device *vkms_device = platform_get_drvdata(pdev);
+
+	drm_dev_unregister(&vkms_device->drm);
+	platform_device_unregister(pdev);
+}
+
 struct vkms_config *vkms_config_alloc(void)
 {
 	struct vkms_config *vkms_config = kzalloc(sizeof(*vkms_config), GFP_KERNEL);

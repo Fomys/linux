@@ -130,7 +130,7 @@ struct vkms_config_plane {
 struct platform_device *vkms_create_device(struct vkms_platform_data *pdata);
 void vkms_delete_device(struct platform_device *pdev);
 int vkms_configure_device(struct vkms_device *vkms_device,
-			  struct vkms_config *vkms_config);
+			  struct vkms_config *vkms_config);void vkms_delete_device(struct platform_device *pdev);
 /**
  * vkms_config_alloc() - Allocate a configuration structure
  *
