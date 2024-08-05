@@ -9,6 +9,138 @@
 #include "vkms_configfs.h"
 #include "vkms_device_drv.h"
 
+static ssize_t plane_type_show(struct config_item *item, char *page)
+{
+	struct vkms_config_plane *plane;
+	enum drm_plane_type plane_type;
+	struct vkms_configfs_device *vkms_configfs = plane_item_to_vkms_configfs_device(item);
+
+	mutex_lock(&vkms_configfs->lock);
+	plane = plane_item_to_vkms_configfs_plane(item)->vkms_config_plane;
+	plane_type = plane->type;
+	mutex_unlock(&vkms_configfs->lock);
+
+	return sprintf(page, "%u", plane_type);
+}
+
+static ssize_t plane_type_store(struct config_item *item,
+				const char *page, size_t count)
+{
+	struct vkms_configfs_device *vkms_configfs = plane_item_to_vkms_configfs_device(item);
+	enum drm_plane_type val = DRM_PLANE_TYPE_OVERLAY;
+	struct vkms_config_plane *plane;
+	int ret;
+
+	ret = kstrtouint(page, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val != DRM_PLANE_TYPE_PRIMARY && val != DRM_PLANE_TYPE_CURSOR &&
+	    val != DRM_PLANE_TYPE_OVERLAY)
+		return -EINVAL;
+
+	mutex_lock(&vkms_configfs->lock);
+	if (vkms_configfs->enabled) {
+		mutex_unlock(&vkms_configfs->lock);
+		return -EINVAL;
+	}
+
+	plane = plane_item_to_vkms_configfs_plane(item)->vkms_config_plane;
+	plane->type = val;
+
+	mutex_unlock(&vkms_configfs->lock);
+
+	return count;
+}
+
+CONFIGFS_ATTR(plane_, type);
+
+static struct configfs_attribute *plane_attrs[] = {
+	&plane_attr_type,
+	NULL,
+};
+
+static void plane_release(struct config_item *item)
+{
+	struct vkms_configfs_plane *vkms_configfs_plane = plane_item_to_vkms_configfs_plane(item);
+
+	mutex_lock(&vkms_configfs_plane->vkms_configfs_device->lock);
+	vkms_config_delete_plane(vkms_configfs_plane->vkms_config_plane,
+				 vkms_configfs_plane->vkms_configfs_device->vkms_config);
+	mutex_unlock(&vkms_configfs_plane->vkms_configfs_device->lock);
+
+	kfree(vkms_configfs_plane);
+}
+
+static struct configfs_item_operations plane_item_operations = {
+	.release	= plane_release,
+};
+
+static const struct config_item_type subgroup_plane = {
+	.ct_attrs	= plane_attrs,
+	.ct_item_ops	= &plane_item_operations,
+	.ct_owner	= THIS_MODULE,
+};
+
+static struct config_group *planes_make_group(struct config_group *config_group,
+					      const char *name)
+{
+	struct vkms_configfs_device *vkms_configfs;
+	struct vkms_configfs_plane *vkms_configfs_plane;
+
+	vkms_configfs = planes_item_to_vkms_configfs_device(&config_group->cg_item);
+	vkms_configfs_plane = kzalloc(sizeof(*vkms_configfs_plane), GFP_KERNEL);
+
+	if (!vkms_configfs_plane)
+		return ERR_PTR(-ENOMEM);
+
+	mutex_lock(&vkms_configfs->lock);
+
+	if (vkms_configfs->enabled) {
+		kfree(vkms_configfs_plane);
+		mutex_unlock(&vkms_configfs->lock);
+		return ERR_PTR(-EINVAL);
+	}
+
+	vkms_configfs_plane->vkms_config_plane = vkms_config_create_plane(vkms_configfs->vkms_config);
+
+	if (list_count_nodes(&vkms_configfs->vkms_config->planes) == 1)
+		vkms_configfs_plane->vkms_config_plane->type = DRM_PLANE_TYPE_PRIMARY;
+
+	if (!vkms_configfs_plane->vkms_config_plane ||
+	    vkms_config_plane_attach_crtc(vkms_configfs_plane->vkms_config_plane,
+					  vkms_configfs->vkms_config_crtc)) {
+		kfree(vkms_configfs_plane);
+		mutex_unlock(&vkms_configfs->lock);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	vkms_configfs_plane->vkms_config_plane->name = kzalloc(strlen(name) + 1, GFP_KERNEL);
+	if (!vkms_configfs_plane->vkms_config_plane->name) {
+		kfree(vkms_configfs_plane->vkms_config_plane);
+		kfree(vkms_configfs_plane);
+		mutex_unlock(&vkms_configfs->lock);
+		return ERR_PTR(-ENOMEM);
+	}
+	strscpy(vkms_configfs_plane->vkms_config_plane->name, name, strlen(name) + 1);
+
+	config_group_init_type_name(&vkms_configfs_plane->group, name, &subgroup_plane);
+
+	vkms_configfs_plane->vkms_configfs_device = vkms_configfs;
+	mutex_unlock(&vkms_configfs->lock);
+
+	return &vkms_configfs_plane->group;
+}
+
+static struct configfs_group_operations planes_group_operations = {
+	.make_group	= &planes_make_group,
+};
+
+static const struct config_item_type planes_item_type = {
+	.ct_group_ops	= &planes_group_operations,
+	.ct_owner	= THIS_MODULE,
+};
+
 static ssize_t device_enable_show(struct config_item *item, char *page)
 {
 	return sprintf(page, "%d\n",
@@ -93,22 +225,21 @@ static struct config_group *root_make_group(struct config_group *group,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	plane = vkms_config_create_plane(configfs->vkms_config);
-	crtc = vkms_config_create_crtc(configfs->vkms_config);
-	encoder = vkms_config_create_encoder(configfs->vkms_config);
-
-	if (!plane || !crtc || !encoder ||
-	    vkms_config_plane_attach_crtc(plane, crtc) ||
-	    vkms_config_encoder_attach_crtc(encoder, crtc)) {
+	configfs->vkms_config_crtc = vkms_config_create_crtc(configfs->vkms_config);
+	configfs->vkms_config_encoder = vkms_config_create_encoder(configfs->vkms_config);
+	if (!configfs->vkms_config_crtc || !configfs->vkms_config_encoder ||
+	    vkms_config_encoder_attach_crtc(configfs->vkms_config_encoder,
+					    configfs->vkms_config_crtc)) {
 		vkms_config_free(configfs->vkms_config);
 		kfree(configfs);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	plane->type = DRM_PLANE_TYPE_PRIMARY;
-
 	config_group_init_type_name(&configfs->group, name,
 				    &device_item_type);
+
+	config_group_init_type_name(&configfs->plane_group, "planes", &planes_item_type);
+	configfs_add_default_group(&configfs->plane_group, &configfs->group);
 
 	return &configfs->group;
 }
