@@ -313,6 +313,10 @@ struct vkms_config_plane *vkms_config_create_plane(struct vkms_config *vkms_conf
 	vkms_config_overlay->type = DRM_PLANE_TYPE_OVERLAY;
 	vkms_config_overlay->supported_rotations = DRM_MODE_ROTATE_MASK | DRM_MODE_REFLECT_MASK;
 	vkms_config_overlay->default_rotation = DRM_MODE_ROTATE_0;
+	vkms_config_overlay->supported_color_encoding = BIT(DRM_COLOR_YCBCR_BT601) |
+							BIT(DRM_COLOR_YCBCR_BT709) |
+							BIT(DRM_COLOR_YCBCR_BT2020);
+	vkms_config_overlay->default_color_encoding = DRM_COLOR_YCBCR_BT601;
 
 	list_add(&vkms_config_overlay->link, &vkms_config->planes);
 
@@ -349,6 +353,12 @@ bool vkms_config_is_valid(struct vkms_config *vkms_config)
 		// Default rotation not in supported rotations
 		if ((config_plane->default_rotation & config_plane->supported_rotations) !=
 		    config_plane->default_rotation)
+			return false;
+
+		// Default color range not in supported color range
+		if ((config_plane->default_color_encoding &
+		     config_plane->supported_color_encoding) !=
+		    config_plane->default_color_encoding)
 			return false;
 
 		if (config_plane->type == DRM_PLANE_TYPE_PRIMARY) {
