@@ -311,3 +311,8 @@ void vkms_config_free(struct vkms_config *vkms_config)
 {
 	kfree(vkms_config);
 }
+
+bool vkms_config_is_valid(struct vkms_config *config)
+{
+	return true;
+}
