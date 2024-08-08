@@ -184,6 +184,7 @@ int drm_writeback_connector_init(struct drm_device *dev,
 	drm_encoder_helper_add(&wb_connector->encoder, enc_helper_funcs);
 
 	wb_connector->encoder.possible_crtcs = possible_crtcs;
+	wb_connector->managed_encoder = true;
 
 	ret = drm_encoder_init(dev, &wb_connector->encoder,
 			       &drm_writeback_encoder_funcs,
@@ -289,6 +290,15 @@ connector_fail:
 	return ret;
 }
 EXPORT_SYMBOL(drm_writeback_connector_init_with_encoder);
+
+void drm_writeback_connector_cleanup(struct drm_writeback_connector *wb_connector)
+{
+	drm_connector_cleanup(&wb_connector->base);
+	drm_property_blob_put(wb_connector->pixel_formats_blob_ptr);
+	if (wb_connector->managed_encoder)
+		drm_encoder_cleanup(&wb_connector->encoder);
+}
+EXPORT_SYMBOL(drm_writeback_connector_cleanup);
 
 int drm_writeback_set_fb(struct drm_connector_state *conn_state,
 			 struct drm_framebuffer *fb)

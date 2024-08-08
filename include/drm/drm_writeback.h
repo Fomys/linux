@@ -36,6 +36,15 @@ struct drm_writeback_connector {
 	struct drm_encoder encoder;
 
 	/**
+	 * @managed_encoder: Sets to true if @encoder was created by drm_writeback_connector_init()
+	 *
+	 * If the user used drm_writeback_connector_init_with_encoder() to create the connector,
+	 * @encoder is not valid and not managed by drm_writeback_connector. This fields allows
+	 * the drm_writeback_cleanup() function to properly destroy the encoder if needed.
+	 */
+	bool managed_encoder;
+
+	/**
 	 * @pixel_formats_blob_ptr:
 	 *
 	 * DRM blob property data for the pixel formats list on writeback
@@ -160,6 +169,8 @@ int drm_writeback_connector_init_with_encoder(struct drm_device *dev,
 				struct drm_encoder *enc,
 				const struct drm_connector_funcs *con_funcs, const u32 *formats,
 				int n_formats);
+
+void drm_writeback_connector_cleanup(struct drm_writeback_connector *wb_connector);
 
 int drm_writeback_set_fb(struct drm_connector_state *conn_state,
 			 struct drm_framebuffer *fb);
