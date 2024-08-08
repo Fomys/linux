@@ -123,7 +123,7 @@ static int vkms_output_init(struct vkms_device *vkms_device,
 				cursor = &config_plane->plane->base;
 		}
 
-		config_crtc->crtc = vkms_crtc_init(vkms_device, primary, cursor);
+		config_crtc->crtc = vkms_crtc_init(vkms_device, primary, cursor, config_crtc);
 
 		if (IS_ERR(config_crtc->crtc)) {
 			ret = PTR_ERR(config_crtc->crtc);
@@ -157,15 +157,6 @@ static int vkms_output_init(struct vkms_device *vkms_device,
 	if (ret) {
 		DRM_ERROR("Failed to attach connector to encoder\n");
 		return ret;
-	}
-
-	/* Initialize the writeback component */
-	if (vkms_config->writeback) {
-		list_for_each_entry(config_crtc, &vkms_config->crtcs, link) {
-			// TODO: Properly handle error
-			if (vkms_enable_writeback_connector(vkms_device, config_crtc->crtc))
-				DRM_ERROR("Failed to init writeback connector\n");
-		}
 	}
 
 	drm_mode_config_reset(dev);

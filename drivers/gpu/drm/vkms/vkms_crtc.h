@@ -57,6 +57,7 @@ struct vkms_crtc_state {
 struct vkms_crtc {
 	struct drm_crtc base;
 
+	bool wb_connector_initialized;
 	struct drm_writeback_connector wb_connector;
 	struct hrtimer vblank_hrtimer;
 	ktime_t period_ns;
@@ -86,5 +87,7 @@ struct vkms_crtc {
  */
 struct vkms_crtc *vkms_crtc_init(struct vkms_device *vkmsdev,
 				 struct drm_plane *primary,
-				 struct drm_plane *cursor);
+				 struct drm_plane *cursor,
+				 struct vkms_config_crtc *config);
+
 #endif //_VKMS_CRTC_H

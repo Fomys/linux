@@ -128,6 +128,7 @@ static int vkms_create_default_device(void)
 	if (!crtc->name)
 		goto err_alloc;
 	sprintf(crtc->name, "Main CRTC");
+	crtc->enable_writeback = enable_writeback;
 
 	encoder = vkms_config_create_encoder(default_platform_data.config);
 	if (!encoder)

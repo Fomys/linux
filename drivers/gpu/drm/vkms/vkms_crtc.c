@@ -281,9 +281,17 @@ static void vkms_crtc_destroy_workqueue(struct drm_device *dev, void *raw_vkms_c
 	destroy_workqueue(vkms_crtc->composer_workq);
 }
 
+static void vkms_crtc_cleanup_writeback_connector(struct drm_device *dev, void *data)
+{
+	struct vkms_crtc *vkms_crtc = data;
+
+	drm_writeback_connector_cleanup(&vkms_crtc->wb_connector);
+}
+
 struct vkms_crtc *vkms_crtc_init(struct vkms_device *vkmsdev,
 				 struct drm_plane *primary,
-				 struct drm_plane *cursor)
+				 struct drm_plane *cursor,
+				 struct vkms_config_crtc *config)
 {
 	struct drm_device *dev = &vkmsdev->drm;
 	struct vkms_crtc *vkms_crtc;
@@ -318,6 +326,16 @@ struct vkms_crtc *vkms_crtc_init(struct vkms_device *vkmsdev,
 	ret = drmm_add_action_or_reset(&vkmsdev->drm, vkms_crtc_destroy_workqueue, vkms_crtc);
 	if (ret)
 		return ERR_PTR(ret);
+
+	if (config->enable_writeback) {
+		ret = vkms_enable_writeback_connector(vkmsdev, vkms_crtc);
+		if (ret)
+			return ERR_PTR(ret);
+		ret = drmm_add_action_or_reset(&vkmsdev->drm, vkms_crtc_cleanup_writeback_connector,
+					       vkms_crtc);
+		if (ret)
+			return ERR_PTR(ret);
+	}
 
 	return vkms_crtc;
 }

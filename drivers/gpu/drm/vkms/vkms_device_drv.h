@@ -67,6 +67,7 @@ struct vkms_config_crtc {
 	struct list_head link;
 
 	char *name;
+	bool enable_writeback;
 	struct xarray possible_planes;
 	struct xarray possible_encoders;
 
