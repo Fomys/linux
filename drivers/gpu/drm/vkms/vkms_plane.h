@@ -52,10 +52,11 @@ struct vkms_frame_info {
  * vkms_plane_init() - Initialize a plane
  *
  * @vkmsdev: vkms device containing the plane
- * @type: type of plane to initialize
+ * @config: plane configuration
  */
 struct vkms_plane *vkms_plane_init(struct vkms_device *vkmsdev,
-				   enum drm_plane_type type);
+				   struct vkms_config_plane *config);
+void vkms_plane_cleanup(struct vkms_plane *plane);
 
 #define drm_plane_state_to_vkms_plane_state(target) \
 	container_of(target, struct vkms_plane_state, base.base)

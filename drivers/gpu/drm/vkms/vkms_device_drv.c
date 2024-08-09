@@ -83,42 +83,35 @@ err_encoder_init:
 	return ERR_PTR(ret);
 }
 
+/*
+ * This function assumes that the configuration is valid
+ */
 static int vkms_output_init(struct vkms_device *vkms_device,
 			    struct vkms_config *vkms_config)
 {
 	struct drm_device *dev = &vkms_device->drm;
+	struct vkms_plane *primary, *cursor = NULL;
+	struct vkms_config_plane *config_plane;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 	struct vkms_crtc *vkms_crtc;
 	struct drm_plane *plane;
-	struct vkms_plane *primary, *cursor = NULL;
 	int ret;
 	int writeback;
 	unsigned int n;
 
-	/*
-	 * Initialize used planes. One primary plane is required to perform the composition.
-	 *
-	 * The overlays and cursor planes are not mandatory, but can be used to perform complex
-	 * composition.
-	 */
-	primary = vkms_plane_init(vkms_device, DRM_PLANE_TYPE_PRIMARY);
-	if (IS_ERR(primary))
-		return PTR_ERR(primary);
-
-	if (vkms_config->overlays) {
-		for (n = 0; n < NUM_OVERLAY_PLANES; n++) {
-			struct vkms_plane *overlay = vkms_plane_init(vkms_device,
-								     DRM_PLANE_TYPE_OVERLAY);
-			if (IS_ERR(overlay))
-				return PTR_ERR(overlay);
+	list_for_each_entry(config_plane, &vkms_config->planes, link) {
+		config_plane->plane = vkms_plane_init(vkms_device, config_plane);
+		if (IS_ERR(config_plane->plane)) {
+			ret = PTR_ERR(config_plane->plane);
+			return ret;
 		}
-	}
 
-	if (vkms_config->cursor) {
-		cursor = vkms_plane_init(vkms_device, DRM_PLANE_TYPE_CURSOR);
-		if (IS_ERR(cursor))
-			return PTR_ERR(cursor);
+		if (config_plane->type == DRM_PLANE_TYPE_PRIMARY)
+			primary = config_plane->plane;
+		else if (config_plane->type == DRM_PLANE_TYPE_CURSOR)
+			cursor = config_plane->plane;
+
 	}
 
 	/* [1]: Initialize the crtc component */
@@ -299,20 +292,74 @@ struct vkms_config *vkms_config_alloc(void)
 
 	if (!vkms_config)
 		return NULL;
-
-	vkms_config->overlays = false;
-	vkms_config->cursor = false;
 	vkms_config->writeback = false;
+	INIT_LIST_HEAD(&vkms_config->planes);
 
 	return vkms_config;
 }
 
+struct vkms_config_plane *vkms_config_create_plane(struct vkms_config *vkms_config)
+{
+	if (!vkms_config)
+		return NULL;
+
+	struct vkms_config_plane *vkms_config_overlay = kzalloc(sizeof(*vkms_config_overlay),
+								GFP_KERNEL);
+
+	if (!vkms_config_overlay)
+		return NULL;
+
+	vkms_config_overlay->name = NULL;
+	vkms_config_overlay->type = DRM_PLANE_TYPE_OVERLAY;
+
+	list_add(&vkms_config_overlay->link, &vkms_config->planes);
+
+	return vkms_config_overlay;
+}
+
+void vkms_config_delete_plane(struct vkms_config_plane *vkms_config_overlay)
+{
+	if (!vkms_config_overlay)
+		return;
+	list_del(&vkms_config_overlay->link);
+	kfree(vkms_config_overlay->name);
+	kfree(vkms_config_overlay);
+}
+
 void vkms_config_free(struct vkms_config *vkms_config)
 {
+	struct vkms_config_plane *vkms_config_plane, *tmp_plane;
+
+	list_for_each_entry_safe(vkms_config_plane, tmp_plane, &vkms_config->planes, link) {
+		vkms_config_delete_plane(vkms_config_plane);
+	}
 	kfree(vkms_config);
 }
 
-bool vkms_config_is_valid(struct vkms_config *config)
+bool vkms_config_is_valid(struct vkms_config *vkms_config)
 {
+	struct vkms_config_plane *config_plane;
+
+	bool has_cursor = false;
+	bool has_primary = false;
+
+	list_for_each_entry(config_plane, &vkms_config->planes, link) {
+		if (config_plane->type == DRM_PLANE_TYPE_PRIMARY) {
+			// Multiple primary planes for only one CRTC
+			if (has_primary)
+				return false;
+			has_primary = true;
+		}
+		if (config_plane->type == DRM_PLANE_TYPE_CURSOR) {
+			// Multiple cursor planes for only one CRTC
+			if (has_cursor)
+				return false;
+			has_cursor = true;
+		}
+	}
+
+	if (!has_primary)
+		return false;
+
 	return true;
 }

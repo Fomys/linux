@@ -113,16 +113,49 @@ static int vkms_create_default_device(void)
 {
 	struct platform_device *pdev;
 	default_platform_data.config = vkms_config_alloc();
+	struct vkms_config_plane *plane;
 
-	default_platform_data.config->overlays = enable_overlay;
+	if (!default_platform_data.config)
+		return -ENOMEM;
+
 	default_platform_data.config->writeback = enable_writeback;
-	default_platform_data.config->cursor = enable_cursor;
+
+	plane = vkms_config_create_plane(default_platform_data.config);
+	if (!plane)
+		goto err_alloc;
+
+	plane->type = DRM_PLANE_TYPE_PRIMARY;
+	plane->name = kzalloc(sizeof("primary"), GFP_KERNEL);
+	sprintf(plane->name, "primary");
+
+	if (enable_overlay) {
+		for (int i = 0; i < NUM_OVERLAY_PLANES; i++) {
+			plane = vkms_config_create_plane(default_platform_data.config);
+			if (!plane)
+				goto err_alloc;
+			plane->type = DRM_PLANE_TYPE_OVERLAY;
+			plane->name = kzalloc(10, GFP_KERNEL);
+			snprintf(plane->name, 10, "plane-%d", i);
+		}
+	}
+	if (enable_cursor) {
+		plane = vkms_config_create_plane(default_platform_data.config);
+		if (!plane)
+			goto err_alloc;
+		plane->type = DRM_PLANE_TYPE_CURSOR;
+		plane->name = kzalloc(sizeof("cursor"), GFP_KERNEL);
+		sprintf(plane->name, "cursor");
+	}
 
 	pdev = vkms_create_device(&default_platform_data);
 	if (IS_ERR(pdev))
 		return PTR_ERR(pdev);
 
 	return 0;
+
+err_alloc:
+	vkms_config_free(default_platform_data.config);
+	return -ENOMEM;
 }
 
 static int __init vkms_platform_driver_init(void)
