@@ -16,6 +16,6 @@ struct vkms_writeback_job {
 };
 
 /* Writeback */
-int vkms_enable_writeback_connector(struct vkms_device *vkmsdev);
+int vkms_enable_writeback_connector(struct vkms_device *vkmsdev, struct vkms_crtc *vkms_crtc);
 
 #endif //_VKMS_WRITEBACK_H

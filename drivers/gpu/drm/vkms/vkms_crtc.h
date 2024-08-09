@@ -48,7 +48,6 @@ struct vkms_crtc_state {
  * @wb_connecter: DRM writeback connector used for this output
  * @vblank_hrtimer:
  * @period_ns:
- * @event:
  * @composer_workq: Ordered workqueue for composer_work
  * @lock: Lock used to project concurrent acces to the composer
  * @composer_enabled: Protected by @lock.
@@ -61,7 +60,6 @@ struct vkms_crtc {
 	struct drm_writeback_connector wb_connector;
 	struct hrtimer vblank_hrtimer;
 	ktime_t period_ns;
-	struct drm_pending_vblank_event *event;
 	struct workqueue_struct *composer_workq;
 	spinlock_t lock;
 
@@ -71,17 +69,22 @@ struct vkms_crtc {
 	spinlock_t composer_lock;
 };
 
-#define to_vkms_crtc_state(target)\
+#define drm_crtc_state_to_vkms_crtc_state(target)\
 	container_of(target, struct vkms_crtc_state, base)
+
+#define drm_crtc_to_vkms_crtc(target) \
+	container_of(target, struct vkms_crtc, base)
+
+#define hrtimer_to_vkms_crtc(target) \
+	container_of(target, struct vkms_crtc, vblank_hrtimer)
 
 /**
  * vkms_crtc_init() - Initialize a crtc for vkms
- * @dev: drm_device associated with the vkms buffer
- * @crtc: uninitialized crtc device
+ * @vkmsdev: drm_device associated with the vkms buffer
  * @primary: primary plane to attach to the crtc
  * @cursor plane to attach to the crtc
  */
-int vkms_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
-		   struct drm_plane *primary, struct drm_plane *cursor);
-
+struct vkms_crtc *vkms_crtc_init(struct vkms_device *vkmsdev,
+				 struct drm_plane *primary,
+				 struct drm_plane *cursor);
 #endif //_VKMS_CRTC_H

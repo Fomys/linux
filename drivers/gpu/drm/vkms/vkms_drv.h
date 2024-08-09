@@ -26,35 +26,6 @@
 #define VKMS_LUT_SIZE 256
 
 /**
- * struct vkms_output - Internal representation of all output components in vkms
- *
- * @crtc: Base crtc in drm
- * @encoder: DRM encoder used for this output
- * @connector: DRM connector used for this output
- * @wb_connecter: DRM writeback connector used for this output
- * @vblank_hrtimer:
- * @period_ns:
- * @composer_workq: Ordered workqueue for composer_work
- * @lock: Lock used to project concurrent acces to the composer
- * @composer_enabled: Protected by @lock.
- * @composer_state:
- * @composer_lock: Lock used internally to protect @composer_state members
- */
-struct vkms_output {
-	struct drm_crtc crtc;
-	struct drm_writeback_connector wb_connector;
-	struct hrtimer vblank_hrtimer;
-	ktime_t period_ns;
-	struct workqueue_struct *composer_workq;
-	spinlock_t lock;
-
-	bool composer_enabled;
-	struct vkms_crtc_state *composer_state;
-
-	spinlock_t composer_lock;
-};
-
-/**
  * struct vkms_config - General configuration for VKMS driver
  *
  * @writeback: If true, a writeback buffer can be attached to the CRTC
@@ -80,7 +51,6 @@ struct vkms_config {
 struct vkms_device {
 	struct drm_device drm;
 	struct platform_device *platform;
-	struct vkms_output output;
 	const struct vkms_config *config;
 };
 
@@ -88,20 +58,7 @@ struct vkms_device {
  * The following helpers are used to convert a member of a struct into its parent.
  */
 
-#define drm_crtc_to_vkms_output(target) \
-	container_of(target, struct vkms_output, crtc)
-
 #define drm_device_to_vkms_device(target) \
 	container_of(target, struct vkms_device, drm)
-
-/**
- * vkms_output_init() - Initialize all sub-components needed for a vkms device.
- *
- * @vkmsdev: vkms device to initialize
- * @possible_crtc_index: Crtc which can be attached to the planes. The caller must ensure that
- * possible_crtc_index is positive and less or equals to 31.
- */
-
-int vkms_output_init(struct vkms_device *vkmsdev, int possible_crtc_index);
 
 #endif /* _VKMS_DRV_H_ */

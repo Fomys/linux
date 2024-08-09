@@ -31,6 +31,7 @@
 
 #include <drm/drm_print.h>
 #include <drm/drm_debugfs.h>
+#include <drm/drm_edid.h>
 
 #define DRIVER_NAME	"vkms"
 #define DRIVER_DESC	"Virtual Kernel Mode Setting"
@@ -46,21 +47,14 @@ MODULE_PARM_DESC(enable_cursor, "Enable/Disable cursor support");
 
 static bool enable_writeback = true;
 module_param_named(enable_writeback, enable_writeback, bool, 0444);
-MODULE_PARM_DESC(enable_writeback, "Enable/Disable writeback connector support");
+MODULE_PARM_DESC(enable_writeback,
+		 "Enable/Disable writeback connector support");
 
 static bool enable_overlay;
 module_param_named(enable_overlay, enable_overlay, bool, 0444);
 MODULE_PARM_DESC(enable_overlay, "Enable/Disable overlay support");
 
 DEFINE_DRM_GEM_FOPS(vkms_driver_fops);
-
-static void vkms_release(struct drm_device *dev)
-{
-	struct vkms_device *vkms = drm_device_to_vkms_device(dev);
-
-	if (vkms->output.composer_workq)
-		destroy_workqueue(vkms->output.composer_workq);
-}
 
 static void vkms_atomic_commit_tail(struct drm_atomic_state *old_state)
 {
@@ -82,7 +76,8 @@ static void vkms_atomic_commit_tail(struct drm_atomic_state *old_state)
 	drm_atomic_helper_wait_for_flip_done(dev, old_state);
 
 	for_each_old_crtc_in_state(old_state, crtc, old_crtc_state, i) {
-		struct vkms_crtc_state *vkms_state = to_vkms_crtc_state(old_crtc_state);
+		struct vkms_crtc_state *vkms_state =
+			drm_crtc_state_to_vkms_crtc_state(old_crtc_state);
 
 		flush_work(&vkms_state->composer_work);
 	}
@@ -109,7 +104,6 @@ static const struct drm_debugfs_info vkms_config_debugfs_list[] = {
 
 static const struct drm_driver vkms_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_GEM,
-	.release		= vkms_release,
 	.fops			= &vkms_driver_fops,
 	DRM_GEM_SHMEM_DRIVER_OPS,
 
@@ -147,6 +141,120 @@ static const struct drm_mode_config_funcs vkms_mode_funcs = {
 static const struct drm_mode_config_helper_funcs vkms_mode_config_helpers = {
 	.atomic_commit_tail = vkms_atomic_commit_tail,
 };
+
+static const struct drm_connector_funcs vkms_connector_funcs = {
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+};
+
+static const struct drm_encoder_funcs vkms_encoder_funcs = {};
+
+static int vkms_conn_get_modes(struct drm_connector *connector)
+{
+	int count;
+
+	/* Use the default modes list from drm */
+	count = drm_add_modes_noedid(connector, XRES_MAX, YRES_MAX);
+	drm_set_preferred_mode(connector, XRES_DEF, YRES_DEF);
+
+	return count;
+}
+
+static const struct drm_connector_helper_funcs vkms_conn_helper_funcs = {
+	.get_modes = vkms_conn_get_modes,
+};
+
+static int vkms_output_init(struct vkms_device *vkmsdev, int possible_crtc)
+{
+	struct drm_device *dev = &vkmsdev->drm;
+	struct drm_connector *connector;
+	struct drm_encoder *encoder;
+	struct vkms_crtc *crtc;
+	struct drm_plane *plane;
+	struct vkms_plane *primary, *cursor, *overlay = NULL;
+	int ret;
+	int writeback;
+	unsigned int n;
+
+	/*
+	 * Initialize used plane. One primary plane is required to perform the composition.
+	 *
+	 * The overlay and cursor planes are not mandatory, but can be used to perform complex
+	 * composition.
+	 */
+	primary = vkms_plane_init(vkmsdev, DRM_PLANE_TYPE_PRIMARY, possible_crtc);
+	if (IS_ERR(primary))
+		return PTR_ERR(primary);
+
+	if (vkmsdev->config->overlay) {
+		for (n = 0; n < NUM_OVERLAY_PLANES; n++) {
+			overlay = vkms_plane_init(vkmsdev, DRM_PLANE_TYPE_OVERLAY, possible_crtc);
+			if (IS_ERR(overlay))
+				return PTR_ERR(overlay);
+		}
+	}
+
+	if (vkmsdev->config->cursor) {
+		cursor = vkms_plane_init(vkmsdev, DRM_PLANE_TYPE_CURSOR, possible_crtc);
+		if (IS_ERR(cursor))
+			return PTR_ERR(cursor);
+	}
+
+	/* [1]: Initialize the crtc component */
+	crtc = vkms_crtc_init(vkmsdev, &primary->base,
+			      cursor ? &cursor->base : NULL);
+	if (IS_ERR(crtc))
+		return PTR_ERR(crtc);
+
+	/* Enable the output's CRTC for all the planes */
+	drm_for_each_plane(plane, &vkmsdev->drm) {
+		plane->possible_crtcs |= drm_crtc_mask(&crtc->base);
+	}
+
+	/* Initialize the connector component */
+	connector = drmm_kzalloc(&vkmsdev->drm, sizeof(*connector), GFP_KERNEL);
+
+	ret = drmm_connector_init(dev, connector, &vkms_connector_funcs,
+				  DRM_MODE_CONNECTOR_VIRTUAL, NULL);
+	if (ret) {
+		DRM_ERROR("Failed to init connector\n");
+		return ret;
+	}
+
+	drm_connector_helper_add(connector, &vkms_conn_helper_funcs);
+
+	/* Initialize the encoder component */
+	encoder = drmm_kzalloc(&vkmsdev->drm, sizeof(*encoder), GFP_KERNEL);
+
+	ret = drmm_encoder_init(dev, encoder, &vkms_encoder_funcs,
+				DRM_MODE_ENCODER_VIRTUAL, NULL);
+	if (ret) {
+		DRM_ERROR("Failed to init encoder\n");
+		return ret;
+	}
+
+	encoder->possible_crtcs = drm_crtc_mask(&crtc->base);
+
+	/* Attach the encoder and the connector */
+	ret = drm_connector_attach_encoder(connector, encoder);
+	if (ret) {
+		DRM_ERROR("Failed to attach connector to encoder\n");
+		return ret;
+	}
+
+	/* Initialize the writeback component */
+	if (vkmsdev->config->writeback) {
+		writeback = vkms_enable_writeback_connector(vkmsdev, crtc);
+		if (writeback)
+			DRM_ERROR("Failed to init writeback connector\n");
+	}
+
+	drm_mode_config_reset(dev);
+
+	return 0;
+}
 
 static int vkms_modeset_init(struct vkms_device *vkmsdev)
 {
