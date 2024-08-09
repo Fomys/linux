@@ -112,11 +112,33 @@ static struct platform_driver vkms_platform_driver = {
 static int vkms_create_default_device(void)
 {
 	struct platform_device *pdev;
-	default_platform_data.config = vkms_config_alloc();
 	struct vkms_config_plane *plane;
+	struct vkms_config_encoder *encoder;
+	struct vkms_config_crtc *crtc;
+	default_platform_data.config = vkms_config_alloc();
 
 	if (!default_platform_data.config)
 		return -ENOMEM;
+
+	crtc = vkms_config_create_crtc(default_platform_data.config);
+
+	if (!crtc)
+		goto err_alloc;
+	crtc->name = kzalloc(sizeof("Main CRTC"), GFP_KERNEL);
+	if (!crtc->name)
+		goto err_alloc;
+	sprintf(crtc->name, "Main CRTC");
+
+	encoder = vkms_config_create_encoder(default_platform_data.config);
+	if (!encoder)
+		goto err_alloc;
+	encoder->name = kzalloc(sizeof("Main Encoder"), GFP_KERNEL);
+	if (!encoder->name)
+		goto err_alloc;
+	sprintf(encoder->name, "Main Encoder");
+
+	if (vkms_config_encoder_attach_crtc(encoder, crtc))
+		goto err_alloc;
 
 	default_platform_data.config->writeback = enable_writeback;
 
@@ -128,6 +150,9 @@ static int vkms_create_default_device(void)
 	plane->name = kzalloc(sizeof("primary"), GFP_KERNEL);
 	sprintf(plane->name, "primary");
 
+	if (vkms_config_plane_attach_crtc(plane, crtc))
+		goto err_alloc;
+
 	if (enable_overlay) {
 		for (int i = 0; i < NUM_OVERLAY_PLANES; i++) {
 			plane = vkms_config_create_plane(default_platform_data.config);
@@ -136,6 +161,9 @@ static int vkms_create_default_device(void)
 			plane->type = DRM_PLANE_TYPE_OVERLAY;
 			plane->name = kzalloc(10, GFP_KERNEL);
 			snprintf(plane->name, 10, "plane-%d", i);
+
+			if (vkms_config_plane_attach_crtc(plane, crtc))
+				goto err_alloc;
 		}
 	}
 	if (enable_cursor) {
@@ -145,6 +173,9 @@ static int vkms_create_default_device(void)
 		plane->type = DRM_PLANE_TYPE_CURSOR;
 		plane->name = kzalloc(sizeof("cursor"), GFP_KERNEL);
 		sprintf(plane->name, "cursor");
+
+		if (vkms_config_plane_attach_crtc(plane, crtc))
+			goto err_alloc;
 	}
 
 	pdev = vkms_create_device(&default_platform_data);

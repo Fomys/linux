@@ -64,7 +64,8 @@ err_connector_init:
 	return ERR_PTR(ret);
 }
 
-static struct drm_encoder *vkms_encoder_init(struct vkms_device *vkmsdev)
+static struct drm_encoder *vkms_encoder_init(struct vkms_device *vkmsdev,
+					     struct vkms_config_encoder *config)
 {
 	struct drm_encoder *encoder;
 	int ret;
@@ -90,15 +91,19 @@ static int vkms_output_init(struct vkms_device *vkms_device,
 			    struct vkms_config *vkms_config)
 {
 	struct drm_device *dev = &vkms_device->drm;
-	struct vkms_plane *primary, *cursor = NULL;
 	struct vkms_config_plane *config_plane;
 	struct drm_connector *connector;
-	struct drm_encoder *encoder;
-	struct vkms_crtc *vkms_crtc;
-	struct drm_plane *plane;
 	int ret;
-	int writeback;
-	unsigned int n;
+
+	/*
+	 * Initialize used planes. One primary plane is required to perform the composition.
+	 *
+	 * The overlays and cursor planes are not mandatory, but can be used to perform complex
+	 * composition.
+	 */
+	struct vkms_config_crtc *config_crtc;
+	struct vkms_config_encoder *config_encoder;
+	unsigned long idx;
 
 	list_for_each_entry(config_plane, &vkms_config->planes, link) {
 		config_plane->plane = vkms_plane_init(vkms_device, config_plane);
@@ -106,39 +111,49 @@ static int vkms_output_init(struct vkms_device *vkms_device,
 			ret = PTR_ERR(config_plane->plane);
 			return ret;
 		}
-
-		if (config_plane->type == DRM_PLANE_TYPE_PRIMARY)
-			primary = config_plane->plane;
-		else if (config_plane->type == DRM_PLANE_TYPE_CURSOR)
-			cursor = config_plane->plane;
-
 	}
 
-	/* [1]: Initialize the crtc component */
-	vkms_crtc = vkms_crtc_init(vkms_device, &primary->base,
-				   cursor ? &cursor->base : NULL);
-	if (IS_ERR(vkms_crtc))
-		return PTR_ERR(vkms_crtc);
+	list_for_each_entry(config_crtc, &vkms_config->crtcs, link) {
+		struct drm_plane *primary = NULL, *cursor = NULL;
 
-	/* Enable the output's CRTC for all the planes */
-	drm_for_each_plane(plane, &vkms_device->drm) {
-		plane->possible_crtcs |= drm_crtc_mask(&vkms_crtc->base);
+		xa_for_each(&config_crtc->possible_planes, idx, config_plane) {
+			if (config_plane->type == DRM_PLANE_TYPE_PRIMARY)
+				primary = &config_plane->plane->base;
+			else if (config_plane->type == DRM_PLANE_TYPE_CURSOR)
+				cursor = &config_plane->plane->base;
+		}
+
+		config_crtc->crtc = vkms_crtc_init(vkms_device, primary, cursor);
+
+		if (IS_ERR(config_crtc->crtc)) {
+			ret = PTR_ERR(config_crtc->crtc);
+			return ret;
+		}
+	}
+
+	list_for_each_entry(config_crtc, &vkms_config->crtcs, link) {
+		xa_for_each(&config_crtc->possible_planes, idx, config_plane) {
+			config_plane->plane->base.possible_crtcs |= drm_crtc_mask(&config_crtc->crtc->base);
+		}
 	}
 
 	connector = vkms_connector_init(vkms_device);
 	if (IS_ERR(connector))
 		return PTR_ERR(connector);
 
-	encoder = vkms_encoder_init(vkms_device);
-	if (IS_ERR(encoder)) {
-		DRM_ERROR("Failed to init encoder\n");
-		return PTR_ERR(encoder);
+	list_for_each_entry(config_encoder, &vkms_config->encoders, link) {
+		config_encoder->encoder = vkms_encoder_init(vkms_device, config_encoder);
+		xa_for_each(&config_encoder->possible_crtcs, idx, config_crtc) {
+			config_encoder->encoder->possible_crtcs |= drm_crtc_mask(&config_crtc->crtc->base);
+		}
+		if (IS_ERR(config_encoder->encoder))
+			return PTR_ERR(config_encoder->encoder);
+		ret = drm_connector_attach_encoder(connector, config_encoder->encoder);
 	}
+
 	drm_connector_helper_add(connector, &vkms_conn_helper_funcs);
-	encoder->possible_crtcs |= drm_crtc_mask(&vkms_crtc->base);
 
 	/* Attach the encoder and the connector */
-	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret) {
 		DRM_ERROR("Failed to attach connector to encoder\n");
 		return ret;
@@ -146,9 +161,11 @@ static int vkms_output_init(struct vkms_device *vkms_device,
 
 	/* Initialize the writeback component */
 	if (vkms_config->writeback) {
-		writeback = vkms_enable_writeback_connector(vkms_device, vkms_crtc);
-		if (writeback)
-			DRM_ERROR("Failed to init writeback connector\n");
+		list_for_each_entry(config_crtc, &vkms_config->crtcs, link) {
+			// TODO: Properly handle error
+			if (vkms_enable_writeback_connector(vkms_device, config_crtc->crtc))
+				DRM_ERROR("Failed to init writeback connector\n");
+		}
 	}
 
 	drm_mode_config_reset(dev);
@@ -294,6 +311,9 @@ struct vkms_config *vkms_config_alloc(void)
 		return NULL;
 	vkms_config->writeback = false;
 	INIT_LIST_HEAD(&vkms_config->planes);
+	INIT_LIST_HEAD(&vkms_config->crtcs);
+	INIT_LIST_HEAD(&vkms_config->encoders);
+	vkms_config->writeback = false;
 
 	return vkms_config;
 }
@@ -320,37 +340,199 @@ struct vkms_config_plane *vkms_config_create_plane(struct vkms_config *vkms_conf
 	vkms_config_overlay->supported_color_range = BIT(DRM_COLOR_YCBCR_LIMITED_RANGE) |
 						     BIT(DRM_COLOR_YCBCR_FULL_RANGE);
 	vkms_config_overlay->default_color_range = DRM_COLOR_YCBCR_FULL_RANGE;
+	xa_init_flags(&vkms_config_overlay->possible_crtcs, XA_FLAGS_ALLOC);
 
 	list_add(&vkms_config_overlay->link, &vkms_config->planes);
 
 	return vkms_config_overlay;
 }
 
-void vkms_config_delete_plane(struct vkms_config_plane *vkms_config_overlay)
+struct vkms_config_crtc *vkms_config_create_crtc(struct vkms_config *vkms_config)
 {
-	if (!vkms_config_overlay)
+	if (!vkms_config)
+		return NULL;
+
+	struct vkms_config_crtc *vkms_config_crtc = kzalloc(sizeof(*vkms_config_crtc),
+							    GFP_KERNEL);
+
+	if (!vkms_config_crtc)
+		return NULL;
+
+	list_add(&vkms_config_crtc->link, &vkms_config->crtcs);
+	xa_init_flags(&vkms_config_crtc->possible_planes, XA_FLAGS_ALLOC);
+	xa_init_flags(&vkms_config_crtc->possible_encoders, XA_FLAGS_ALLOC);
+
+	return vkms_config_crtc;
+}
+
+struct vkms_config_encoder *vkms_config_create_encoder(struct vkms_config *vkms_config)
+{
+	if (!vkms_config)
+		return NULL;
+
+	struct vkms_config_encoder *vkms_config_encoder = kzalloc(sizeof(*vkms_config_encoder),
+								  GFP_KERNEL);
+
+	if (!vkms_config_encoder)
+		return NULL;
+
+	list_add(&vkms_config_encoder->link, &vkms_config->encoders);
+	xa_init_flags(&vkms_config_encoder->possible_crtcs, XA_FLAGS_ALLOC);
+
+	return vkms_config_encoder;
+}
+
+void vkms_config_delete_plane(struct vkms_config_plane *vkms_config_plane,
+			      struct vkms_config *vkms_config)
+{
+	struct vkms_config_crtc *crtc_config;
+	struct vkms_config_plane *plane;
+
+	if (!vkms_config_plane)
 		return;
-	list_del(&vkms_config_overlay->link);
-	kfree(vkms_config_overlay->name);
-	kfree(vkms_config_overlay);
+	list_del(&vkms_config_plane->link);
+	xa_destroy(&vkms_config_plane->possible_crtcs);
+
+	list_for_each_entry(crtc_config, &vkms_config->crtcs, link) {
+		unsigned long idx = 0;
+
+		xa_for_each(&crtc_config->possible_planes, idx, plane) {
+			if (plane == vkms_config_plane)
+				xa_erase(&crtc_config->possible_planes, idx);
+		}
+	}
+
+	kfree(vkms_config_plane->name);
+	kfree(vkms_config_plane);
+}
+
+void vkms_config_delete_crtc(struct vkms_config_crtc *vkms_config_crtc,
+			     struct vkms_config *vkms_config)
+{
+	struct vkms_config_crtc *crtc_config;
+	struct vkms_config_plane *plane_config;
+	struct vkms_config_encoder *encoder_config;
+
+	if (!vkms_config_crtc)
+		return;
+	list_del(&vkms_config_crtc->link);
+	xa_destroy(&vkms_config_crtc->possible_planes);
+	xa_destroy(&vkms_config_crtc->possible_encoders);
+
+	list_for_each_entry(plane_config, &vkms_config->planes, link) {
+		unsigned long idx = 0;
+
+		xa_for_each(&plane_config->possible_crtcs, idx, crtc_config) {
+			if (crtc_config == vkms_config_crtc)
+				xa_erase(&plane_config->possible_crtcs, idx);
+		}
+	}
+
+	list_for_each_entry(encoder_config, &vkms_config->encoders, link) {
+		unsigned long idx = 0;
+
+		xa_for_each(&encoder_config->possible_crtcs, idx, crtc_config) {
+			if (crtc_config == vkms_config_crtc)
+				xa_erase(&encoder_config->possible_crtcs, idx);
+		}
+	}
+
+	kfree(vkms_config_crtc->name);
+	kfree(vkms_config_crtc);
+}
+
+void vkms_config_delete_encoder(struct vkms_config_encoder *vkms_config_encoder,
+				struct vkms_config *vkms_config)
+{
+	if (!vkms_config_encoder)
+		return;
+	list_del(&vkms_config_encoder->link);
+	xa_destroy(&vkms_config_encoder->possible_crtcs);
+
+	struct vkms_config_crtc *crtc_config;
+	struct vkms_config_encoder *encoder;
+
+	list_for_each_entry(crtc_config, &vkms_config->crtcs, link) {
+		unsigned long idx = 0;
+
+		xa_for_each(&crtc_config->possible_encoders, idx, encoder) {
+			if (encoder == vkms_config_encoder)
+				xa_erase(&crtc_config->possible_encoders, idx);
+		}
+	}
+
+	kfree(vkms_config_encoder->name);
+	kfree(vkms_config_encoder);
 }
 
 void vkms_config_free(struct vkms_config *vkms_config)
 {
 	struct vkms_config_plane *vkms_config_plane, *tmp_plane;
+	struct vkms_config_encoder *vkms_config_encoder, *tmp_encoder;
+	struct vkms_config_crtc *vkms_config_crtc, *tmp_crtc;
 
 	list_for_each_entry_safe(vkms_config_plane, tmp_plane, &vkms_config->planes, link) {
-		vkms_config_delete_plane(vkms_config_plane);
+		vkms_config_delete_plane(vkms_config_plane,
+					 vkms_config);
+	}
+	list_for_each_entry_safe(vkms_config_encoder, tmp_encoder, &vkms_config->encoders, link) {
+		vkms_config_delete_encoder(vkms_config_encoder,
+					   vkms_config);
+	}
+	list_for_each_entry_safe(vkms_config_crtc, tmp_crtc, &vkms_config->crtcs, link) {
+		vkms_config_delete_crtc(vkms_config_crtc,
+					vkms_config);
 	}
 	kfree(vkms_config);
+}
+
+int __must_check vkms_config_plane_attach_crtc(struct vkms_config_plane *vkms_config_plane,
+					       struct vkms_config_crtc *vkms_config_crtc)
+{
+	u32 crtc_idx, encoder_idx;
+	int ret;
+
+	ret = xa_alloc(&vkms_config_plane->possible_crtcs, &crtc_idx, vkms_config_crtc,
+		       xa_limit_32b, GFP_KERNEL);
+	if (ret)
+		return ret;
+
+	ret = xa_alloc(&vkms_config_crtc->possible_planes, &encoder_idx, vkms_config_plane,
+		       xa_limit_32b, GFP_KERNEL);
+	if (ret) {
+		xa_erase(&vkms_config_plane->possible_crtcs, crtc_idx);
+		return ret;
+	}
+
+	return ret;
+}
+
+int __must_check vkms_config_encoder_attach_crtc(struct vkms_config_encoder *vkms_config_encoder,
+						 struct vkms_config_crtc *vkms_config_crtc)
+{
+	u32 crtc_idx, encoder_idx;
+	int ret;
+
+	ret = xa_alloc(&vkms_config_encoder->possible_crtcs, &crtc_idx, vkms_config_crtc,
+		       xa_limit_32b, GFP_KERNEL);
+	if (ret)
+		return ret;
+
+	ret = xa_alloc(&vkms_config_crtc->possible_encoders, &encoder_idx, vkms_config_encoder,
+		       xa_limit_32b, GFP_KERNEL);
+	if (ret) {
+		xa_erase(&vkms_config_encoder->possible_crtcs, crtc_idx);
+		return ret;
+	}
+
+	return ret;
 }
 
 bool vkms_config_is_valid(struct vkms_config *vkms_config)
 {
 	struct vkms_config_plane *config_plane;
-
-	bool has_cursor = false;
-	bool has_primary = false;
+	struct vkms_config_crtc *config_crtc;
+	struct vkms_config_encoder *config_encoder;
 
 	list_for_each_entry(config_plane, &vkms_config->planes, link) {
 		// Default rotation not in supported rotations
@@ -358,7 +540,7 @@ bool vkms_config_is_valid(struct vkms_config *vkms_config)
 		    config_plane->default_rotation)
 			return false;
 
-		// Default color range not in supported color range
+		// Default color encoding not in supported color encodings
 		if ((config_plane->default_color_encoding &
 		     config_plane->supported_color_encoding) !=
 		    config_plane->default_color_encoding)
@@ -369,22 +551,47 @@ bool vkms_config_is_valid(struct vkms_config *vkms_config)
 		    config_plane->default_color_range)
 			return false;
 
-		if (config_plane->type == DRM_PLANE_TYPE_PRIMARY) {
-			// Multiple primary planes for only one CRTC
-			if (has_primary)
-				return false;
-			has_primary = true;
-		}
-		if (config_plane->type == DRM_PLANE_TYPE_CURSOR) {
-			// Multiple cursor planes for only one CRTC
-			if (has_cursor)
-				return false;
-			has_cursor = true;
-		}
+		// No CRTC linked to this plane
+		if (xa_empty(&config_plane->possible_crtcs))
+			return false;
 	}
 
-	if (!has_primary)
-		return false;
+	list_for_each_entry(config_encoder, &vkms_config->encoders, link) {
+		// No CRTC linked to this encoder
+		if (xa_empty(&config_encoder->possible_crtcs))
+			return false;
+	}
+
+	list_for_each_entry(config_crtc, &vkms_config->crtcs, link) {
+		bool has_primary = false;
+		bool has_cursor = false;
+		unsigned long idx = 0;
+
+		// No encoder attached to this CRTC
+		if (xa_empty(&config_crtc->possible_encoders))
+			return false;
+
+		xa_for_each(&config_crtc->possible_planes, idx, config_plane) {
+			if (config_plane->type == DRM_PLANE_TYPE_PRIMARY) {
+				// Multiple primary planes for only one CRTC
+				if (has_primary)
+					return false;
+
+				has_primary = true;
+			}
+			if (config_plane->type == DRM_PLANE_TYPE_CURSOR) {
+				// Multiple cursor planes for only one CRTC
+				if (has_cursor)
+					return false;
+
+				has_cursor = true;
+			}
+		}
+
+		// No primary plane for this CRTC
+		if (!has_primary)
+			return false;
+	}
 
 	return true;
 }
