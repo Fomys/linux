@@ -50,6 +50,7 @@ struct vkms_config_crtc {
  * struct vkms_config_encoder
  *
  * @link: Link to the others encoders
+ * @name: Name of the encoder
  * @possible_crtcs: List of CRTC that can be used with this encoder
  * @encoder: Internal usage. This pointer should never be considered as valid. It can be used to
  *         store a temporary reference to a vkms encoder during device creation. This pointer is
@@ -58,6 +59,7 @@ struct vkms_config_crtc {
 struct vkms_config_encoder {
 	struct list_head link;
 
+	char *name;
 	struct xarray possible_crtcs;
 
 	/* Internal usage */

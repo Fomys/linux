@@ -41,6 +41,10 @@ struct vkms_config *vkms_config_alloc_default(bool enable_writeback, bool enable
 	encoder = vkms_config_create_encoder(vkms_config);
 	if (!encoder)
 		goto err_alloc;
+	encoder->name = kzalloc(sizeof("Main Encoder"), GFP_KERNEL);
+	if (!encoder->name)
+		goto err_alloc;
+	sprintf(encoder->name, "Main Encoder");
 
 	if (vkms_config_encoder_attach_crtc(encoder, crtc))
 		goto err_alloc;
@@ -238,6 +242,7 @@ void vkms_config_delete_encoder(struct vkms_config_encoder *vkms_config_encoder,
 		}
 	}
 
+	kfree(vkms_config_encoder->name);
 	kfree(vkms_config_encoder);
 }
 
@@ -403,6 +408,7 @@ static int vkms_config_show(struct seq_file *m, void *data)
 
 	list_for_each_entry(config_encoder, &vkmsdev->config->encoders, link) {
 		seq_puts(m, "encoder:\n");
+		seq_printf(m, "\tname: %s\n", config_encoder->name);
 	}
 
 	list_for_each_entry(config_crtc, &vkmsdev->config->crtcs, link) {
