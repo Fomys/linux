@@ -241,10 +241,9 @@ struct vkms_plane *vkms_plane_init(struct vkms_device *vkmsdev,
 
 	drm_plane_create_color_properties(&plane->base,
 					  config->supported_color_encoding,
-					  BIT(DRM_COLOR_YCBCR_LIMITED_RANGE) |
-					  BIT(DRM_COLOR_YCBCR_FULL_RANGE),
+					  config->supported_color_range,
 					  config->default_color_encoding,
-					  DRM_COLOR_YCBCR_FULL_RANGE);
+					  config->default_color_range);
 
 	return plane;
 }
