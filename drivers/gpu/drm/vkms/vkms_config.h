@@ -32,6 +32,8 @@ struct vkms_config {
  *        plane is primary.
  * @default_rotation: Default rotation that should be used by this plane
  * @supported_rotation: Rotation that this plane will support
+ * @default_color_encoding: Default color encoding that should be used by this plane
+ * @supported_color_encoding: Color encoding that this plane will support
  * @plane: Internal usage. This pointer should never be considered as valid. It can be used to
  *         store a temporary reference to a vkms plane during device creation. This pointer is
  *         not managed by the configuration and must be managed by other means.
@@ -43,6 +45,8 @@ struct vkms_config_plane {
 	enum drm_plane_type type;
 	unsigned int default_rotation;
 	unsigned int supported_rotations;
+	enum drm_color_encoding default_color_encoding;
+	unsigned int supported_color_encoding;
 
 	/* Internal usage */
 	struct vkms_plane *plane;

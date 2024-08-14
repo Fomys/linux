@@ -84,6 +84,11 @@ struct vkms_config_plane *vkms_config_create_plane(struct vkms_config *vkms_conf
 	vkms_config_overlay->type = DRM_PLANE_TYPE_OVERLAY;
 	vkms_config_overlay->supported_rotations = DRM_MODE_ROTATE_MASK | DRM_MODE_REFLECT_MASK;
 	vkms_config_overlay->default_rotation = DRM_MODE_ROTATE_0;
+	vkms_config_overlay->supported_color_encoding = BIT(DRM_COLOR_YCBCR_BT601) |
+							BIT(DRM_COLOR_YCBCR_BT709) |
+							BIT(DRM_COLOR_YCBCR_BT2020);
+	vkms_config_overlay->default_color_encoding = DRM_COLOR_YCBCR_BT601;
+
 
 	list_add(&vkms_config_overlay->link, &vkms_config->planes);
 
@@ -125,6 +130,12 @@ bool vkms_config_is_valid(struct vkms_config *config)
 		    config_plane->default_rotation)
 			return false;
 
+		// Default color range not in supported color range
+		if ((BIT(config_plane->default_color_encoding) &
+		     config_plane->supported_color_encoding) !=
+		    BIT(config_plane->default_color_encoding))
+			return false;
+
 		if (config_plane->type == DRM_PLANE_TYPE_PRIMARY) {
 			// Multiple primary planes for only one CRTC
 			if (has_primary)
@@ -160,6 +171,10 @@ static int vkms_config_show(struct seq_file *m, void *data)
 		seq_printf(m, "\ttype: %d\n", config_plane->type);
 		seq_printf(m, "\tsupported rotations: 0x%x\n", config_plane->supported_rotations);
 		seq_printf(m, "\tdefault rotation: 0x%x\n", config_plane->default_rotation);
+		seq_printf(m, "\tsupported color encoding: 0x%x\n",
+			   config_plane->supported_color_encoding);
+		seq_printf(m, "\tdefault color encoding: %d\n",
+			   config_plane->default_color_encoding);
 	}
 
 	return 0;
