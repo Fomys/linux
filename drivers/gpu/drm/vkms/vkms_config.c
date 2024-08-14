@@ -153,6 +153,11 @@ static bool valid_plane_properties(const struct vkms_config *config)
 		     vkms_config_plane_get_supported_rotations(plane_cfg)) !=
 		    vkms_config_plane_get_default_rotation(plane_cfg))
 			return false;
+
+		if ((BIT(vkms_config_plane_get_default_color_encoding(plane_cfg)) &
+		     vkms_config_plane_get_supported_color_encoding(plane_cfg)) !=
+		    BIT(vkms_config_plane_get_default_color_encoding(plane_cfg)))
+			return false;
 	}
 	return true;
 }
@@ -372,6 +377,10 @@ static int vkms_config_show(struct seq_file *m, void *data)
 			   vkms_config_plane_get_supported_rotations(plane_cfg));
 		seq_printf(m, "\tdefault rotation: 0x%x\n",
 			   vkms_config_plane_get_default_rotation(plane_cfg));
+		seq_printf(m, "\tsupported color encoding: 0x%x\n",
+			   vkms_config_plane_get_supported_color_encoding(plane_cfg));
+		seq_printf(m, "\tdefault color encoding: %d\n",
+			   vkms_config_plane_get_default_color_encoding(plane_cfg));
 	}
 
 	vkms_config_for_each_crtc(vkmsdev->config, crtc_cfg) {
@@ -414,6 +423,10 @@ struct vkms_config_plane *vkms_config_create_plane(struct vkms_config *config)
 	vkms_config_plane_set_type(plane_cfg, DRM_PLANE_TYPE_OVERLAY);
 	vkms_config_plane_set_supported_rotations(plane_cfg, DRM_MODE_ROTATE_MASK);
 	vkms_config_plane_set_default_rotation(plane_cfg, DRM_MODE_ROTATE_0);
+	vkms_config_plane_set_supported_color_encoding(plane_cfg, BIT(DRM_COLOR_YCBCR_BT601) |
+							BIT(DRM_COLOR_YCBCR_BT709) |
+							BIT(DRM_COLOR_YCBCR_BT2020));
+	vkms_config_plane_set_default_color_encoding(plane_cfg, DRM_COLOR_YCBCR_BT601);
 
 	xa_init_flags(&plane_cfg->possible_crtcs, XA_FLAGS_ALLOC);
 
