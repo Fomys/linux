@@ -282,7 +282,7 @@ struct vkms_output *vkms_crtc_init(struct vkms_device *vkms_device,
 
 	vkms_out = drmm_crtc_alloc_with_planes(dev, struct vkms_output, crtc,
 					       primary, cursor,
-					       &vkms_crtc_funcs, NULL);
+					       &vkms_crtc_funcs, config->name);
 	if (IS_ERR(vkms_out)) {
 		DRM_DEV_ERROR(dev->dev, "Failed to init CRTC\n");
 		return vkms_out;
