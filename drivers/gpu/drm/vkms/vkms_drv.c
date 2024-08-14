@@ -29,6 +29,7 @@
 
 #include "vkms_drv.h"
 #include "vkms_config.h"
+#include "vkms_configfs.h"
 
 #include <drm/drm_print.h>
 #include <drm/drm_debugfs.h>
@@ -156,7 +157,7 @@ int vkms_create(struct vkms_config *config)
 	struct platform_device *pdev;
 	struct vkms_device *vkms_device;
 
-	pdev = platform_device_register_simple(DRIVER_NAME, -1, NULL, 0);
+	pdev = platform_device_register_simple(DRIVER_NAME, PLATFORM_DEVID_AUTO, NULL, 0);
 	if (IS_ERR(pdev))
 		return PTR_ERR(pdev);
 
@@ -217,9 +218,17 @@ static int __init vkms_init(void)
 	if (IS_ERR(default_config))
 		return PTR_ERR(default_config);
 
-	ret = vkms_create(default_config);
-	if (ret)
+	ret = vkms_init_configfs();
+	if (ret) {
+		DRM_ERROR("Unable to initialize configfs\n");
 		vkms_config_destroy(default_config);
+	}
+
+	ret = vkms_create(default_config);
+	if (ret) {
+		vkms_unregister_configfs();
+		vkms_config_destroy(default_config);
+	}
 
 	return ret;
 }
@@ -249,6 +258,8 @@ static void __exit vkms_exit(void)
 		vkms_destroy(default_config);
 
 	vkms_config_destroy(default_config);
+
+	vkms_unregister_configfs();
 }
 
 module_init(vkms_init);
