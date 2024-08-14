@@ -42,4 +42,13 @@ void vkms_config_destroy(struct vkms_config *config);
  */
 bool vkms_config_is_valid(struct vkms_config *vkms_config);
 
+/**
+ * vkms_config_alloc_default() - Allocate the configuration for the default device
+ * @enable_writeback: Enable the writeback connector for this configuration
+ * @enable_overlay: Create some overlay planes
+ * @enable_cursor:  Create a cursor plane
+ */
+struct vkms_config *vkms_config_alloc_default(bool enable_writeback, bool enable_overlay,
+					      bool enable_cursor);
+
 #endif //_VKMS_CONFIG_H

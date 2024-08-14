@@ -18,6 +18,21 @@ struct vkms_config *vkms_config_create(void)
 }
 EXPORT_SYMBOL_IF_KUNIT(vkms_config_create);
 
+struct vkms_config *vkms_config_alloc_default(bool enable_writeback, bool enable_overlay,
+					      bool enable_cursor)
+{
+	struct vkms_config *vkms_config = vkms_config_create();
+
+	if (IS_ERR(vkms_config))
+		return vkms_config;
+
+	vkms_config->writeback = enable_writeback;
+	vkms_config->overlay = enable_overlay;
+	vkms_config->cursor = enable_cursor;
+
+	return vkms_config;
+}
+
 void vkms_config_destroy(struct vkms_config *config)
 {
 	kfree(config);

@@ -213,14 +213,9 @@ out_unregister:
 static int __init vkms_init(void)
 {
 	int ret;
-
-	default_config = vkms_config_create();
+	default_config = vkms_config_alloc_default(enable_writeback, enable_overlay, enable_cursor);
 	if (IS_ERR(default_config))
 		return PTR_ERR(default_config);
-
-	default_config->cursor = enable_cursor;
-	default_config->writeback = enable_writeback;
-	default_config->overlay = enable_overlay;
 
 	ret = vkms_create(default_config);
 	if (ret)
