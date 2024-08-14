@@ -398,8 +398,10 @@ static int vkms_config_show(struct seq_file *m, void *data)
 			   vkms_config_crtc_get_writeback(crtc_cfg));
 	}
 
-	vkms_config_for_each_encoder(vkmsdev->config, encoder_cfg)
-		seq_puts(m, "encoder\n");
+	vkms_config_for_each_encoder(vkmsdev->config, encoder_cfg) {
+		seq_puts(m, "encoder:\n");
+		seq_printf(m, "\tname: %s\n", vkms_config_encoder_get_name(encoder_cfg));
+	}
 
 	vkms_config_for_each_connector(vkmsdev->config, connector_cfg) {
 		seq_puts(m, "connector:\n");

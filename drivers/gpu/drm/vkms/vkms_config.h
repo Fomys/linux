@@ -105,6 +105,7 @@ struct vkms_config_encoder {
 	struct list_head link;
 	struct vkms_config *config;
 
+	const char *name;
 	struct xarray possible_crtcs;
 
 	/* Internal usage */
@@ -422,6 +423,30 @@ static inline const char *
 vkms_config_crtc_get_name(struct vkms_config_crtc *crtc_cfg)
 {
 	return crtc_cfg->name;
+}
+
+/**
+ * vkms_config_encoder_get_name - Get the encoder name
+ * @encoder_cfg: Encoder to get the name from
+ */
+static inline const char *
+vkms_config_encoder_get_name(struct vkms_config_encoder *encoder_cfg)
+{
+	return encoder_cfg->name;
+}
+
+/**
+ * vkms_config_encoder_set_name() - Set the encoder name
+ * @encoder_cfg: Encoder to set the name to
+ * @name: New encoder name. The name is copied.
+ */
+static inline void
+vkms_config_encoder_set_name(struct vkms_config_encoder *encoder_cfg,
+			   const char *name)
+{
+	if (encoder_cfg->name)
+		kfree_const(encoder_cfg->name);
+	encoder_cfg->name = kstrdup_const(name, GFP_KERNEL);
 }
 
 /**

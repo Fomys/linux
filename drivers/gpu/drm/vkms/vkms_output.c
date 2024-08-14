@@ -68,7 +68,7 @@ int vkms_output_init(struct vkms_device *vkmsdev)
 			return -ENOMEM;
 		}
 		ret = drmm_encoder_init(dev, encoder_cfg->encoder, NULL,
-					DRM_MODE_ENCODER_VIRTUAL, NULL);
+					DRM_MODE_ENCODER_VIRTUAL, vkms_config_encoder_get_name(encoder_cfg));
 		if (ret) {
 			DRM_ERROR("Failed to init encoder\n");
 			return ret;
