@@ -2,6 +2,8 @@
 
 #include "vkms_connector.h"
 #include "vkms_drv.h"
+#include "vkms_config.h"
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_managed.h>
 
 int vkms_output_init(struct vkms_device *vkmsdev)
