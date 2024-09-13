@@ -843,12 +843,83 @@ static void connector_release(struct config_item *item)
 	kfree(vkms_configfs_connector);
 }
 
+static ssize_t connector_type_show(struct config_item *item, char *page)
+{
+	struct vkms_config_connector *connector;
+	int connector_type;
+	struct vkms_configfs_device *vkms_configfs = connector_child_item_to_vkms_configfs_device(item);
+
+	mutex_lock(&vkms_configfs->lock);
+	connector = connector_item_to_vkms_configfs_connector(item)->vkms_config_connector;
+	connector_type = connector->type;
+	mutex_unlock(&vkms_configfs->lock);
+
+	return sprintf(page, "%u", connector_type);
+}
+
+static ssize_t connector_type_store(struct config_item *item,
+				    const char *page, size_t count)
+{
+	struct vkms_config_connector *connector;
+	int val = DRM_MODE_CONNECTOR_VIRTUAL;
+	struct vkms_configfs_device *vkms_configfs = connector_child_item_to_vkms_configfs_device(item);
+	int ret;
+
+	ret = kstrtouint(page, 10, &val);
+	if (ret)
+		return ret;
+
+	switch (val) {
+	case DRM_MODE_CONNECTOR_Unknown:
+	case DRM_MODE_CONNECTOR_VGA:
+	case DRM_MODE_CONNECTOR_DVII:
+	case DRM_MODE_CONNECTOR_DVID:
+	case DRM_MODE_CONNECTOR_DVIA:
+	case DRM_MODE_CONNECTOR_Composite:
+	case DRM_MODE_CONNECTOR_SVIDEO:
+	case DRM_MODE_CONNECTOR_LVDS:
+	case DRM_MODE_CONNECTOR_Component:
+	case DRM_MODE_CONNECTOR_9PinDIN:
+	case DRM_MODE_CONNECTOR_DisplayPort:
+	case DRM_MODE_CONNECTOR_HDMIA:
+	case DRM_MODE_CONNECTOR_HDMIB:
+	case DRM_MODE_CONNECTOR_TV:
+	case DRM_MODE_CONNECTOR_eDP:
+	case DRM_MODE_CONNECTOR_VIRTUAL:
+	case DRM_MODE_CONNECTOR_DSI:
+	case DRM_MODE_CONNECTOR_DPI:
+	case DRM_MODE_CONNECTOR_SPI:
+	case DRM_MODE_CONNECTOR_USB:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	scoped_guard(mutex, &vkms_configfs->lock) {
+		if (vkms_configfs->enabled)
+			return -EINVAL;
+
+		connector = connector_item_to_vkms_configfs_connector(item)->vkms_config_connector;
+		connector->type = val;
+	}
+
+	return count;
+}
+
+CONFIGFS_ATTR(connector_, type);
+
+static struct configfs_attribute *connector_attrs[] = {
+	&connector_attr_type,
+	NULL,
+};
+
 static struct configfs_item_operations connector_item_operations = {
 	.release = connector_release,
 };
 
 static const struct config_item_type connector_item_type = {
 	.ct_item_ops = &connector_item_operations,
+	.ct_attrs = connector_attrs,
 	.ct_owner = THIS_MODULE,
 };
 
