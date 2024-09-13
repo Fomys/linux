@@ -17,6 +17,7 @@ struct vkms_config *vkms_config_create(void)
 	INIT_LIST_HEAD(&config->planes);
 	INIT_LIST_HEAD(&config->crtcs);
 	INIT_LIST_HEAD(&config->encoders);
+	INIT_LIST_HEAD(&config->connectors);
 
 	return config;
 }
@@ -28,6 +29,7 @@ struct vkms_config *vkms_config_alloc_default(bool enable_writeback, bool enable
 	struct vkms_config_plane *plane;
 	struct vkms_config_encoder *encoder;
 	struct vkms_config_crtc *crtc;
+	struct vkms_config_connector *connector;
 	struct vkms_config *vkms_config = vkms_config_create();
 
 	if (IS_ERR(vkms_config))
@@ -51,6 +53,12 @@ struct vkms_config *vkms_config_alloc_default(bool enable_writeback, bool enable
 	sprintf(encoder->name, "Main Encoder");
 
 	if (vkms_config_encoder_attach_crtc(encoder, crtc))
+		goto err_alloc;
+
+	connector = vkms_config_create_connector(vkms_config);
+	if (!connector)
+		goto err_alloc;
+	if (vkms_config_connector_attach_encoder(connector, encoder))
 		goto err_alloc;
 
 	plane = vkms_config_create_plane(vkms_config);
@@ -129,6 +137,24 @@ struct vkms_config_plane *vkms_config_create_plane(struct vkms_config *vkms_conf
 	return vkms_config_overlay;
 }
 EXPORT_SYMBOL_IF_KUNIT(vkms_config_create_plane);
+
+struct vkms_config_connector *vkms_config_create_connector(struct vkms_config *vkms_config)
+{
+	if (!vkms_config)
+		return NULL;
+
+	struct vkms_config_connector *vkms_config_connector =
+		kzalloc(sizeof(*vkms_config_connector), GFP_KERNEL);
+
+	if (!vkms_config_connector)
+		return NULL;
+
+	list_add(&vkms_config_connector->link, &vkms_config->connectors);
+	xa_init_flags(&vkms_config_connector->possible_encoders, XA_FLAGS_ALLOC);
+	vkms_config_connector->type = DRM_MODE_CONNECTOR_VIRTUAL;
+
+	return vkms_config_connector;
+}
 
 struct vkms_config_crtc *vkms_config_create_crtc(struct vkms_config *vkms_config)
 {
@@ -227,6 +253,15 @@ void vkms_config_delete_crtc(struct vkms_config_crtc *vkms_config_crtc,
 	kfree(vkms_config_crtc);
 }
 
+void vkms_config_delete_connector(struct vkms_config_connector *vkms_config_conector)
+{
+	if (!vkms_config_conector)
+		return;
+	list_del(&vkms_config_conector->link);
+
+	kfree(vkms_config_conector);
+}
+
 void vkms_config_delete_encoder(struct vkms_config_encoder *vkms_config_encoder,
 				struct vkms_config *vkms_config)
 {
@@ -247,6 +282,17 @@ void vkms_config_delete_encoder(struct vkms_config_encoder *vkms_config_encoder,
 		}
 	}
 
+	struct vkms_config_connector *connector_config;
+
+	list_for_each_entry(connector_config, &vkms_config->connectors, link) {
+		unsigned long idx = 0;
+
+		xa_for_each(&connector_config->possible_encoders, idx, encoder) {
+			if (encoder == vkms_config_encoder)
+				xa_erase(&connector_config->possible_encoders, idx);
+		}
+	}
+
 	kfree(vkms_config_encoder->name);
 	kfree(vkms_config_encoder);
 }
@@ -256,7 +302,7 @@ void vkms_config_destroy(struct vkms_config *config)
 	struct vkms_config_plane *vkms_config_plane, *tmp_plane;
 	struct vkms_config_encoder *vkms_config_encoder, *tmp_encoder;
 	struct vkms_config_crtc *vkms_config_crtc, *tmp_crtc;
-
+	struct vkms_config_connector *vkms_config_connector, *tmp_connector;
 	list_for_each_entry_safe(vkms_config_plane, tmp_plane, &config->planes, link) {
 		vkms_config_delete_plane(vkms_config_plane, config);
 	}
@@ -265,6 +311,9 @@ void vkms_config_destroy(struct vkms_config *config)
 	}
 	list_for_each_entry_safe(vkms_config_crtc, tmp_crtc, &config->crtcs, link) {
 		vkms_config_delete_crtc(vkms_config_crtc, config);
+	}
+	list_for_each_entry_safe(vkms_config_connector, tmp_connector, &config->connectors, link) {
+		vkms_config_delete_connector(vkms_config_connector);
 	}
 
 	kfree(config);
@@ -314,6 +363,18 @@ int __must_check vkms_config_encoder_attach_crtc(struct vkms_config_encoder *vkm
 	return ret;
 }
 EXPORT_SYMBOL_IF_KUNIT(vkms_config_encoder_attach_crtc);
+
+int __must_check
+vkms_config_connector_attach_encoder(struct vkms_config_connector *vkms_config_connector,
+				     struct vkms_config_encoder *vkms_config_encoder)
+{
+	u32 encoder_idx;
+	int ret;
+
+	ret = xa_alloc(&vkms_config_connector->possible_encoders, &encoder_idx, vkms_config_encoder,
+		       xa_limit_32b, GFP_KERNEL);
+	return ret;
+}
 
 bool vkms_config_is_valid(struct vkms_config *config)
 {

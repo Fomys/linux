@@ -183,7 +183,7 @@ static int vkms_create(struct vkms_config *config)
 		goto out_devres;
 	}
 
-	ret = drm_vblank_init(&vkms_device->drm, 1);
+	ret = drm_vblank_init(&vkms_device->drm, list_count_nodes(&config->crtcs));
 	if (ret) {
 		DRM_ERROR("Failed to vblank\n");
 		goto out_devres;

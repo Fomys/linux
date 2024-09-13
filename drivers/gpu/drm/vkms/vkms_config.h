@@ -23,6 +23,7 @@ struct vkms_config {
 	struct list_head planes;
 	struct list_head crtcs;
 	struct list_head encoders;
+	struct list_head connectors;
 };
 
 /**
@@ -103,6 +104,16 @@ struct vkms_config_plane {
 	struct vkms_plane *plane;
 };
 
+struct vkms_config_connector {
+	struct list_head link;
+
+	struct xarray possible_encoders;
+	int type;
+
+	/* Internal usage */
+	struct vkms_connector *connector;
+};
+
 /**
  * vkms_config_register_debugfs() - Register the debugfs file to display current configuration
  */
@@ -133,6 +144,8 @@ bool vkms_config_is_valid(struct vkms_config *vkms_config);
  */
 struct vkms_config_plane *vkms_config_create_plane(struct vkms_config *vkms_config);
 
+struct vkms_config_connector *vkms_config_create_connector(struct vkms_config *vkms_config);
+
 /**
  * vkms_config_create_crtc() - Create a crtc configuration
  *
@@ -153,7 +166,9 @@ int __must_check vkms_config_plane_attach_crtc(struct vkms_config_plane *vkms_co
 					       struct vkms_config_crtc *vkms_config_crtc);
 int __must_check vkms_config_encoder_attach_crtc(struct vkms_config_encoder *vkms_config_encoder,
 						 struct vkms_config_crtc *vkms_config_crtc);
-
+int __must_check
+vkms_config_connector_attach_encoder(struct vkms_config_connector *vkms_config_connector,
+				     struct vkms_config_encoder *vkms_config_encoder);
 /**
  * vkms_config_delete_plane() - Remove a plane configuration and frees its memory
  *
@@ -190,7 +205,7 @@ void vkms_config_delete_crtc(struct vkms_config_crtc *vkms_config_crtc,
  */
 void vkms_config_delete_encoder(struct vkms_config_encoder *vkms_config_encoder,
 				struct vkms_config *vkms_config);
-
+void vkms_config_delete_connector(struct vkms_config_connector *vkms_config_conector);
 /**
  * vkms_config_alloc_default() - Allocate the configuration for the default device
  * @enable_writeback: Enable the writeback connector for this configuration
