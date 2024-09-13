@@ -200,6 +200,9 @@ int __must_check vkms_config_encoder_attach_crtc(struct vkms_config_encoder *vkm
 int __must_check
 vkms_config_connector_attach_encoder(struct vkms_config_connector *vkms_config_connector,
 				     struct vkms_config_encoder *vkms_config_encoder);
+void vkms_config_connector_detach_encoder(struct vkms_config_connector *vkms_config_connector,
+					  struct vkms_config_encoder *vkms_config_encoder);
+
 /**
  * vkms_config_delete_plane() - Remove a plane configuration and frees its memory
  *

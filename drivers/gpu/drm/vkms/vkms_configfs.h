@@ -22,6 +22,7 @@ struct vkms_configfs_device {
 	struct config_group plane_group;
 	struct config_group crtc_group;
 	struct config_group encoder_group;
+	struct config_group connector_group;
 
 	struct mutex lock;
 	bool enabled;
@@ -53,6 +54,14 @@ struct vkms_configfs_encoder {
 	struct vkms_config_encoder *vkms_config_encoder;
 };
 
+struct vkms_configfs_connector {
+	struct config_group group;
+
+	struct config_group possible_encoder_group;
+	struct vkms_configfs_device *vkms_configfs_device;
+	struct vkms_config_connector *vkms_config_connector;
+};
+
 #define config_item_to_vkms_configfs_device(item) \
 	container_of(to_config_group((item)), struct vkms_configfs_device, group)
 
@@ -67,6 +76,9 @@ struct vkms_configfs_encoder {
 
 #define encoder_item_to_vkms_configfs_encoder(item) \
 	container_of(to_config_group((item)), struct vkms_configfs_encoder, group)
+
+#define connector_item_to_vkms_configfs_connector(item) \
+	container_of(to_config_group((item)), struct vkms_configfs_connector, group)
 
 #define plane_item_to_vkms_configfs_device(item) \
 	planes_item_to_vkms_configfs_device((item)->ci_parent)
@@ -89,14 +101,25 @@ struct vkms_configfs_encoder {
 #define encoder_item_to_vkms_configfs_device(item) \
 	config_item_to_vkms_configfs_device((item)->ci_parent)
 
+#define connector_item_to_vkms_configfs_device(item) \
+	config_item_to_vkms_configfs_device((item)->ci_parent)
+
 #define encoder_child_item_to_vkms_configfs_device(item) \
 	encoder_item_to_vkms_configfs_device((item)->ci_parent)
 
 #define encoder_possible_crtc_src_item_to_vkms_configfs_device(item) \
 	encoder_child_item_to_vkms_configfs_device((item)->ci_parent)
 
+#define connector_child_item_to_vkms_configfs_device(item) \
+	connector_item_to_vkms_configfs_device((item)->ci_parent)
+
+#define connector_possible_encoder_src_item_to_vkms_configfs_device(item) \
+	connector_child_item_to_vkms_configfs_device((item)->ci_parent)
+
 #define encoder_possible_crtc_src_item_to_vkms_configfs_encoder(item) \
 	encoder_item_to_vkms_configfs_encoder((item)->ci_parent)
+#define connector_possible_encoder_src_item_to_vkms_configfs_connector(item) \
+	connector_item_to_vkms_configfs_connector((item)->ci_parent)
 
 /* ConfigFS Support */
 int vkms_init_configfs(void);

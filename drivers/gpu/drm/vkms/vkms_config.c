@@ -516,6 +516,19 @@ vkms_config_connector_attach_encoder(struct vkms_config_connector *vkms_config_c
 	return ret;
 }
 
+void vkms_config_connector_detach_encoder(struct vkms_config_connector *vkms_config_connector,
+					  struct vkms_config_encoder *vkms_config_encoder)
+{
+	struct vkms_config_encoder *encoder_entry;
+	unsigned long encoder_idx;
+
+	xa_for_each(&vkms_config_connector->possible_encoders, encoder_idx, encoder_entry) {
+		if (encoder_entry == vkms_config_encoder)
+			break;
+	}
+	xa_erase(&vkms_config_connector->possible_encoders, encoder_idx);
+}
+
 bool vkms_config_is_valid(struct vkms_config *config)
 {
 	struct vkms_config_plane *config_plane;
