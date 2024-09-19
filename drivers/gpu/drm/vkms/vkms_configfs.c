@@ -981,10 +981,55 @@ static ssize_t connector_type_store(struct config_item *item,
 	return count;
 }
 
+static ssize_t connector_status_show(struct config_item *item, char *page)
+{
+	struct vkms_config_connector *connector;
+	enum drm_connector_status status;
+	struct vkms_configfs_device *vkms_configfs = connector_child_item_to_vkms_configfs_device(item);
+
+	mutex_lock(&vkms_configfs->lock);
+	connector = connector_item_to_vkms_configfs_connector(item)->vkms_config_connector;
+	status = connector->status;
+	mutex_unlock(&vkms_configfs->lock);
+
+	return sprintf(page, "%u", status);
+}
+
+static ssize_t connector_status_store(struct config_item *item,
+				      const char *page, size_t count)
+{
+	struct vkms_config_connector *connector;
+	enum drm_connector_status status = connector_status_unknown;
+	struct vkms_configfs_device *vkms_configfs = connector_child_item_to_vkms_configfs_device(item);
+	int ret;
+
+	ret = kstrtouint(page, 10, &status);
+	if (ret)
+		return ret;
+
+	switch (status) {
+	case connector_status_unknown:
+	case connector_status_connected:
+	case connector_status_disconnected:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	scoped_guard(mutex, &vkms_configfs->lock) {
+		connector = connector_item_to_vkms_configfs_connector(item)->vkms_config_connector;
+		vkms_config_connector_update_status(connector, status);
+	}
+
+	return count;
+}
+
 CONFIGFS_ATTR(connector_, type);
+CONFIGFS_ATTR(connector_, status);
 
 static struct configfs_attribute *connector_attrs[] = {
 	&connector_attr_type,
+	&connector_attr_status,
 	NULL,
 };
 
