@@ -217,6 +217,7 @@ struct vkms_output {
 
 struct vkms_config;
 struct vkms_config_plane;
+struct vkms_config_crtc;
 
 /**
  * struct vkms_device - Description of a VKMS device
@@ -261,7 +262,8 @@ void vkms_destroy(struct vkms_config *config);
  */
 struct vkms_output *vkms_crtc_init(struct drm_device *dev,
 				   struct drm_plane *primary,
-				   struct drm_plane *cursor);
+				   struct drm_plane *cursor,
+				   struct vkms_config_crtc *config);
 
 /**
  * vkms_output_init() - Initialize all sub-components needed for a VKMS device.
