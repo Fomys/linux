@@ -215,6 +215,8 @@ struct vkms_output {
 
 struct vkms_config;
 struct vkms_config_plane;
+struct vkms_config_crtc;
+struct vkms_config_encoder;
 
 /**
  * struct vkms_device - Description of a VKMS device
@@ -253,9 +255,10 @@ struct vkms_device {
  * @primary: primary plane to attach to the CRTC
  * @cursor: plane to attach to the CRTC
  */
-struct vkms_output *vkms_crtc_init(struct drm_device *dev,
+struct vkms_output *vkms_crtc_init(struct vkms_device *vkms_device,
 				   struct drm_plane *primary,
-				   struct drm_plane *cursor);
+				   struct drm_plane *cursor,
+				   struct vkms_config_crtc *config);
 
 /**
  * vkms_output_init() - Initialize all sub-components needed for a VKMS device.

@@ -9,18 +9,59 @@
 /**
  * struct vkms_config - General configuration for VKMS driver
  *
- * @writeback: If true, a writeback buffer can be attached to the CRTC
  * @planes: List of planes configured for this device. They are created by the function
  *          vkms_config_create_plane().
+ * @crtcs: List of crtcs configured for this device. They are created by the function
+ *         vkms_config_create_crtc().
+ * @encoders: List of encoders configured for this device. They are created by the function
+ *            vkms_config_create_encoder().
  * @dev: Used to store the current vkms device. Only set when the device is instancied.
  */
 struct vkms_config {
-	bool writeback;
-	bool cursor;
-	bool overlay;
 	struct vkms_device *dev;
 
 	struct list_head planes;
+	struct list_head crtcs;
+	struct list_head encoders;
+};
+
+/**
+ * struct vkms_config_crtc
+ *
+ * @link: Link to the others CRTCs
+ * @possible_planes: List of planes that can be used with this CRTC
+ * @possible_encoders: List of encoders that can be used with this CRTC
+ * @crtc: Internal usage. This pointer should never be considered as valid. It can be used to
+ *         store a temporary reference to a vkms crtc during device creation. This pointer is
+ *         not managed by the configuration and must be managed by other means.
+ */
+struct vkms_config_crtc {
+	struct list_head link;
+
+	bool writeback;
+	struct xarray possible_planes;
+	struct xarray possible_encoders;
+
+	/* Internal usage */
+	struct vkms_output *output;
+};
+
+/**
+ * struct vkms_config_encoder
+ *
+ * @link: Link to the others encoders
+ * @possible_crtcs: List of CRTC that can be used with this encoder
+ * @encoder: Internal usage. This pointer should never be considered as valid. It can be used to
+ *         store a temporary reference to a vkms encoder during device creation. This pointer is
+ *         not managed by the configuration and must be managed by other means.
+ */
+struct vkms_config_encoder {
+	struct list_head link;
+
+	struct xarray possible_crtcs;
+
+	/* Internal usage */
+	struct drm_encoder *encoder;
 };
 
 /**
@@ -36,6 +77,7 @@ struct vkms_config {
  * @supported_color_encoding: Color encoding that this plane will support
  * @default_color_range: Default color range that should be used by this plane
  * @supported_color_range: Color range that this plane will support
+ * @possible_crtcs: List of CRTC that can be used with this plane.
  * @plane: Internal usage. This pointer should never be considered as valid. It can be used to
  *         store a temporary reference to a vkms plane during device creation. This pointer is
  *         not managed by the configuration and must be managed by other means.
@@ -52,6 +94,7 @@ struct vkms_config_plane {
 	enum drm_color_range default_color_range;
 	unsigned int supported_color_range;
 
+	struct xarray possible_crtcs;
 	/* Internal usage */
 	struct vkms_plane *plane;
 };
@@ -87,13 +130,62 @@ bool vkms_config_is_valid(struct vkms_config *vkms_config);
 struct vkms_config_plane *vkms_config_create_plane(struct vkms_config *vkms_config);
 
 /**
+ * vkms_config_create_crtc() - Create a crtc configuration
+ *
+ * This will allocate and add a new crtc configuration to @vkms_config.
+ * @vkms_config: Configuration where to insert new crtc configuration
+ */
+struct vkms_config_crtc *vkms_config_create_crtc(struct vkms_config *vkms_config);
+
+/**
+ * vkms_config_create_encoder() - Create an encoder configuration
+ *
+ * This will allocate and add a new encoder configuration to @vkms_config.
+ * @vkms_config: Configuration where to insert new encoder configuration
+ */
+struct vkms_config_encoder *vkms_config_create_encoder(struct vkms_config *vkms_config);
+
+int __must_check vkms_config_plane_attach_crtc(struct vkms_config_plane *vkms_config_plane,
+					       struct vkms_config_crtc *vkms_config_crtc);
+int __must_check vkms_config_encoder_attach_crtc(struct vkms_config_encoder *vkms_config_encoder,
+						 struct vkms_config_crtc *vkms_config_crtc);
+
+/**
  * vkms_config_delete_plane() - Remove a plane configuration and frees its memory
  *
  * This will delete a plane configuration from the parent configuration. This will NOT
- * cleanup and frees the vkms_plane that can be stored in @vkms_config_plane.
+ * cleanup and frees the vkms_plane that can be stored in @vkms_config_plane. It will also remove
+ * any reference to this plane in @vkms_config.
+ *
  * @vkms_config_plane: Plane configuration to cleanup
+ * @vkms_config: Parent configuration
  */
-void vkms_config_delete_plane(struct vkms_config_plane *vkms_config_plane);
+void vkms_config_delete_plane(struct vkms_config_plane *vkms_config_plane,
+			      struct vkms_config *vkms_config);
+/**
+ * vkms_config_delete_crtc() - Remove a CRTC configuration and frees its memory
+ *
+ * This will delete a CRTC configuration from the parent configuration. This will NOT
+ * cleanup and frees the vkms_crtc that can be stored in @vkms_config_crtc. It will also remove
+ * any reference to this CRTC in @vkms_config.
+ *
+ * @vkms_config_crtc: Plane configuration to cleanup
+ * @vkms_config: Parent configuration
+ */
+void vkms_config_delete_crtc(struct vkms_config_crtc *vkms_config_crtc,
+			     struct vkms_config *vkms_config);
+/**
+ * vkms_config_delete_encoder() - Remove an encoder configuration and frees its memory
+ *
+ * This will delete an encoder configuration from the parent configuration. This will NOT
+ * cleanup and frees the vkms_encoder that can be stored in @vkms_config_encoder. It will also
+ * remove any reference to this CRTC in @vkms_config.
+ *
+ * @vkms_config_encoder: Plane configuration to cleanup
+ * @vkms_config: Parent configuration
+ */
+void vkms_config_delete_encoder(struct vkms_config_encoder *vkms_config_encoder,
+				struct vkms_config *vkms_config);
 
 /**
  * vkms_config_alloc_default() - Allocate the configuration for the default device

@@ -9,6 +9,7 @@
 #include <drm/drm_vblank.h>
 
 #include "vkms_drv.h"
+#include "vkms_config.h"
 
 static enum hrtimer_restart vkms_vblank_simulate(struct hrtimer *timer)
 {
@@ -269,9 +270,12 @@ static const struct drm_crtc_helper_funcs vkms_crtc_helper_funcs = {
 	.atomic_disable	= vkms_crtc_atomic_disable,
 };
 
-struct vkms_output *vkms_crtc_init(struct drm_device *dev, struct drm_plane *primary,
-				   struct drm_plane *cursor)
+struct vkms_output *vkms_crtc_init(struct vkms_device *vkms_device,
+				   struct drm_plane *primary,
+				   struct drm_plane *cursor,
+				   struct vkms_config_crtc *config)
 {
+	struct drm_device *dev = &vkms_device->drm;
 	struct vkms_output *vkms_out;
 	struct drm_crtc *crtc;
 	int ret;
