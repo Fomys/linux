@@ -8,30 +8,14 @@
 
 int vkms_output_init(struct vkms_device *vkmsdev)
 {
+	struct vkms_config_plane *config_plane;
 	struct drm_device *dev = &vkmsdev->drm;
 	struct vkms_connector *connector;
 	struct drm_encoder *encoder;
 	struct vkms_output *output;
-	struct vkms_plane *primary, *overlay, *cursor = NULL;
+	struct vkms_plane *primary, *cursor = NULL;
 	int ret;
 	int writeback;
-	unsigned int n;
-
-	/*
-	 * Initialize used plane. One primary plane is required to perform the composition.
-	 *
-	 * The overlay and cursor planes are not mandatory, but can be used to perform complex
-	 * composition.
-	 */
-	primary = vkms_plane_init(vkmsdev, DRM_PLANE_TYPE_PRIMARY);
-	if (IS_ERR(primary))
-		return PTR_ERR(primary);
-
-	if (vkmsdev->config->cursor) {
-		cursor = vkms_plane_init(vkmsdev, DRM_PLANE_TYPE_CURSOR);
-		if (IS_ERR(cursor))
-			return PTR_ERR(cursor);
-	}
 
 	output = vkms_crtc_init(dev, &primary->base,
 				cursor ? &cursor->base : NULL);
@@ -40,15 +24,16 @@ int vkms_output_init(struct vkms_device *vkmsdev)
 		return PTR_ERR(output);
 	}
 
-	if (vkmsdev->config->overlay) {
-		for (n = 0; n < NUM_OVERLAY_PLANES; n++) {
-			overlay = vkms_plane_init(vkmsdev, DRM_PLANE_TYPE_OVERLAY);
-			if (IS_ERR(overlay)) {
-				DRM_DEV_ERROR(dev->dev, "Failed to init vkms plane\n");
-				return PTR_ERR(overlay);
-			}
-			overlay->base.possible_crtcs = drm_crtc_mask(&output->crtc);
+	list_for_each_entry(config_plane, &vkmsdev->config->planes, link) {
+		config_plane->plane = vkms_plane_init(vkmsdev, config_plane);
+		if (IS_ERR(config_plane->plane)) {
+			ret = PTR_ERR(config_plane->plane);
+			return ret;
 		}
+		if (config_plane->type == DRM_PLANE_TYPE_PRIMARY)
+			primary = config_plane->plane;
+		else if (config_plane->type == DRM_PLANE_TYPE_CURSOR)
+			cursor = config_plane->plane;
 	}
 
 	connector = vkms_connector_init(vkmsdev);
