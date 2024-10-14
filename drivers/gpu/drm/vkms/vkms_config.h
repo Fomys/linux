@@ -83,6 +83,7 @@ struct vkms_config_crtc {
 	struct list_head link;
 	struct vkms_config *config;
 
+	const char *name;
 	bool writeback;
 
 	/* Internal usage */
@@ -397,6 +398,30 @@ static inline const char *
 vkms_config_plane_get_name(struct vkms_config_plane *plane_cfg)
 {
 	return plane_cfg->name;
+}
+
+/**
+ * vkms_config_crtc_set_name() - Set the CRTC name
+ * @crtc_cfg: CRTC to set the name to
+ * @name: New CRTC name. The name is copied.
+ */
+static inline void
+vkms_config_crtc_set_name(struct vkms_config_crtc *crtc_cfg,
+			   const char *name)
+{
+	if (crtc_cfg->name)
+		kfree_const(crtc_cfg->name);
+	crtc_cfg->name = kstrdup_const(name, GFP_KERNEL);
+}
+
+/**
+ * vkms_config_crtc_get_name - Get the CRTC name
+ * @crtc_cfg: Plane to get the name from
+ */
+static inline const char *
+vkms_config_crtc_get_name(struct vkms_config_crtc *crtc_cfg)
+{
+	return crtc_cfg->name;
 }
 
 /**
