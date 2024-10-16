@@ -355,6 +355,79 @@ static ssize_t plane_default_color_encoding_store(struct config_item *item,
 	return count;
 }
 
+static ssize_t plane_supported_formats_show(struct config_item *item, char *page)
+{
+	struct vkms_config_plane *plane = plane_item_to_vkms_configfs_plane(item)->vkms_config_plane;
+	struct vkms_configfs_device *vkms_configfs = plane_item_to_vkms_configfs_device(item);
+
+	page[0] = '\0';
+
+	scoped_guard(mutex, &vkms_configfs->lock)
+	{
+		for (int i = 0; i < plane->supported_formats_count; i++) {
+			char tmp[6] = { 0 };
+			const ssize_t ret = snprintf(tmp, ARRAY_SIZE(tmp), "%.*s\n",
+					       (int)sizeof(plane->supported_formats[i]),
+					       (char *)&plane->supported_formats[i]);
+			if (ret < 0)
+				return ret;
+			/* Limitation of ConfigFS attributes, an attribute can't be bigger than PAGE_SIZE */
+			if (ret + strlen(page) > PAGE_SIZE - 1)
+				return -ENOMEM;
+			strncat(page, tmp, ARRAY_SIZE(tmp));
+		}
+	}
+
+	return strlen(page);
+}
+
+static ssize_t plane_supported_formats_store(struct config_item *item,
+					     const char *page, size_t count)
+{
+	struct vkms_config_plane *plane = plane_item_to_vkms_configfs_plane(item)->vkms_config_plane;
+	struct vkms_configfs_device *vkms_configfs = plane_item_to_vkms_configfs_device(item);
+	int ret = 0;
+	int ptr = 0;
+
+	scoped_guard(mutex, &vkms_configfs->lock)
+	{
+		while (ptr < count) {
+			if (page[ptr] == '+') {
+				char tmp[4] = { ' ', ' ', ' ', ' ' };
+
+				memcpy(tmp, &page[ptr + 1], min(sizeof(tmp), count - (ptr + 1)));
+				if (tmp[0] == '*') {
+					ret = vkms_config_plane_add_all_formats(plane);
+					if (ret)
+						return ret;
+					ptr += 1;
+				} else {
+					ret = vkms_config_plane_add_format(plane, *(int *)tmp);
+					if (ret)
+						return ret;
+					ptr += 4;
+				}
+			} else if (page[ptr] == '-') {
+				char tmp[4] = { ' ', ' ', ' ', ' ' };
+
+				memcpy(tmp, &page[ptr + 1], min(sizeof(tmp), count - (ptr + 1)));
+				if (tmp[0] == '*') {
+					vkms_config_plane_remove_all_formats(plane);
+					ptr += 1;
+				} else {
+					vkms_config_plane_remove_format(plane, *(int *)tmp);
+
+					ptr += 4;
+				}
+			}
+			/* Skip anything that is not a + or a - */
+			ptr += 1;
+		}
+	}
+
+	return count;
+}
+
 CONFIGFS_ATTR(plane_, type);
 CONFIGFS_ATTR(plane_, supported_rotations);
 CONFIGFS_ATTR(plane_, default_rotation);
@@ -362,6 +435,7 @@ CONFIGFS_ATTR(plane_, color_range);
 CONFIGFS_ATTR(plane_, default_color_range);
 CONFIGFS_ATTR(plane_, supported_color_encoding);
 CONFIGFS_ATTR(plane_, default_color_encoding);
+CONFIGFS_ATTR(plane_, supported_formats);
 
 static struct configfs_attribute *plane_attrs[] = {
 	&plane_attr_type,
@@ -371,6 +445,7 @@ static struct configfs_attribute *plane_attrs[] = {
 	&plane_attr_default_color_range,
 	&plane_attr_supported_color_encoding,
 	&plane_attr_default_color_encoding,
+	&plane_attr_supported_formats,
 	NULL,
 };
 
