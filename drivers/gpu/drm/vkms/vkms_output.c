@@ -6,6 +6,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_managed.h>
 
+
 int vkms_output_init(struct vkms_device *vkmsdev)
 {
 	struct vkms_config_encoder *config_encoder;

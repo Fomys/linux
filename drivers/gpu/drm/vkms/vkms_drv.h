@@ -217,6 +217,7 @@ struct vkms_config;
 struct vkms_config_plane;
 struct vkms_config_crtc;
 struct vkms_config_encoder;
+struct vkms_config_connector;
 
 /**
  * struct vkms_device - Description of a VKMS device

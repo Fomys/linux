@@ -4,7 +4,6 @@
 #define _VKMS_CONNECTOR_H_
 
 #include "vkms_drv.h"
-#include "vkms_config.h"
 
 /**
  * struct vkms_connector - VKMS custom type wrapping around the DRM connector
@@ -23,5 +22,8 @@ struct vkms_connector {
  * The connector or an error on failure.
  */
 struct vkms_connector *vkms_connector_init(struct vkms_device *vkmsdev, struct vkms_config_connector *config_connector);
+
+#define drm_connector_to_vkms_connector(connector) \
+	container_of((connector), struct vkms_connector, base)
 
 #endif /* _VKMS_CONNECTOR_H_ */

@@ -5,6 +5,7 @@
 
 #include <linux/types.h>
 #include "vkms_drv.h"
+#include "vkms_connector.h"
 
 /**
  * struct vkms_config - General configuration for VKMS driver
@@ -98,21 +99,31 @@ struct vkms_config_plane {
 	unsigned int supported_color_encoding;
 	enum drm_color_range default_color_range;
 	unsigned int supported_color_range;
+	u32 *supported_formats;
+	unsigned int supported_formats_count;
 
 	struct xarray possible_crtcs;
 	/* Internal usage */
 	struct vkms_plane *plane;
 };
 
+struct vkms_connector;
+
 struct vkms_config_connector {
 	struct list_head link;
 
 	struct xarray possible_encoders;
 	int type;
+	enum drm_connector_status status;
+	char edid_blob[PAGE_SIZE];
+	int edid_blob_len;
 
 	/* Internal usage */
 	struct vkms_connector *connector;
 };
+
+void vkms_config_connector_update_status(struct vkms_config_connector *vkms_config_connector,
+					 enum drm_connector_status status);
 
 /**
  * vkms_config_register_debugfs() - Register the debugfs file to display current configuration
@@ -143,6 +154,23 @@ bool vkms_config_is_valid(struct vkms_config *vkms_config);
  * @vkms_config: Configuration where to insert new plane
  */
 struct vkms_config_plane *vkms_config_create_plane(struct vkms_config *vkms_config);
+
+/** vkms_config_plane_add_format - Add a format to the list of supported format of a plane
+ *
+ * The passed drm_format can already be present in the list. This may fail if the allocation of a
+ * bigger array fails.
+ *
+ * @vkms_config_plane: Plane to add the format to
+ * @drm_format: Format to add to this plane
+ *
+ * Returns: 0 on success, -ENOMEM if array allocation fails, -EINVAL if the format is not supported
+ * by VKMS
+ */
+int __must_check vkms_config_plane_add_format(struct vkms_config_plane *vkms_config_plane,
+					      u32 drm_format);
+int __must_check vkms_config_plane_add_all_formats(struct vkms_config_plane *vkms_config_plane);
+void vkms_config_plane_remove_format(struct vkms_config_plane *vkms_config_plane, u32 drm_format);
+void vkms_config_plane_remove_all_formats(struct vkms_config_plane *vkms_config_plane);
 
 struct vkms_config_connector *vkms_config_create_connector(struct vkms_config *vkms_config);
 

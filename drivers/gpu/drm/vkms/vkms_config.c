@@ -2,9 +2,48 @@
 
 #include <kunit/visibility.h>
 #include <drm/drm_debugfs.h>
+#include <drm/drm_probe_helper.h>
 
 #include "vkms_config.h"
 #include "vkms_drv.h"
+
+static const u32 vkms_supported_plane_formats[] = {
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_RGBA8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_RGBX8888,
+	DRM_FORMAT_BGRX8888,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_BGR888,
+	DRM_FORMAT_XRGB16161616,
+	DRM_FORMAT_XBGR16161616,
+	DRM_FORMAT_ARGB16161616,
+	DRM_FORMAT_ABGR16161616,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_BGR565,
+	DRM_FORMAT_NV12,
+	DRM_FORMAT_NV16,
+	DRM_FORMAT_NV24,
+	DRM_FORMAT_NV21,
+	DRM_FORMAT_NV61,
+	DRM_FORMAT_NV42,
+	DRM_FORMAT_YUV420,
+	DRM_FORMAT_YUV422,
+	DRM_FORMAT_YUV444,
+	DRM_FORMAT_YVU420,
+	DRM_FORMAT_YVU422,
+	DRM_FORMAT_YVU444,
+	DRM_FORMAT_P010,
+	DRM_FORMAT_P012,
+	DRM_FORMAT_P016,
+	DRM_FORMAT_R1,
+	DRM_FORMAT_R2,
+	DRM_FORMAT_R4,
+	DRM_FORMAT_R8,
+};
 
 struct vkms_config *vkms_config_create(void)
 {
@@ -120,6 +159,13 @@ struct vkms_config_plane *vkms_config_create_plane(struct vkms_config *vkms_conf
 	if (!vkms_config_overlay)
 		return NULL;
 
+	vkms_config_overlay->supported_formats = NULL;
+
+	if (vkms_config_plane_add_all_formats(vkms_config_overlay)) {
+		kfree(vkms_config_overlay);
+		return NULL;
+	}
+
 	vkms_config_overlay->type = DRM_PLANE_TYPE_OVERLAY;
 	vkms_config_overlay->supported_rotations = DRM_MODE_ROTATE_MASK | DRM_MODE_REFLECT_MASK;
 	vkms_config_overlay->default_rotation = DRM_MODE_ROTATE_0;
@@ -152,8 +198,18 @@ struct vkms_config_connector *vkms_config_create_connector(struct vkms_config *v
 	list_add(&vkms_config_connector->link, &vkms_config->connectors);
 	xa_init_flags(&vkms_config_connector->possible_encoders, XA_FLAGS_ALLOC);
 	vkms_config_connector->type = DRM_MODE_CONNECTOR_VIRTUAL;
+	vkms_config_connector->status = connector_status_unknown;
+	vkms_config_connector->edid_blob_len = 0;
 
 	return vkms_config_connector;
+}
+
+void vkms_config_connector_update_status(struct vkms_config_connector *vkms_config_connector,
+					 enum drm_connector_status status)
+{
+	vkms_config_connector->status = status;
+	if (vkms_config_connector->connector)
+		drm_kms_helper_hotplug_event(vkms_config_connector->connector->base.dev);
 }
 
 struct vkms_config_crtc *vkms_config_create_crtc(struct vkms_config *vkms_config)
@@ -193,6 +249,65 @@ struct vkms_config_encoder *vkms_config_create_encoder(struct vkms_config *vkms_
 }
 EXPORT_SYMBOL_IF_KUNIT(vkms_config_create_encoder);
 
+int __must_check vkms_config_plane_add_all_formats(struct vkms_config_plane *vkms_config_plane)
+{
+	u32 *ret = krealloc_array(vkms_config_plane->supported_formats,
+				  ARRAY_SIZE(vkms_supported_plane_formats),
+				  sizeof(uint32_t), GFP_KERNEL);
+	if (!ret)
+		return -ENOMEM;
+	vkms_config_plane->supported_formats = ret;
+
+	memcpy(vkms_config_plane->supported_formats, vkms_supported_plane_formats,
+	       sizeof(vkms_supported_plane_formats));
+	vkms_config_plane->supported_formats_count = ARRAY_SIZE(vkms_supported_plane_formats);
+	return 0;
+}
+
+int __must_check vkms_config_plane_add_format(struct vkms_config_plane *vkms_config_plane,
+					      u32 drm_format)
+{
+	bool found = false;
+
+	for (int i = 0; i < ARRAY_SIZE(vkms_supported_plane_formats); i++) {
+		if (vkms_supported_plane_formats[i] == drm_format)
+			found = true;
+	}
+
+	if (!found)
+		return -EINVAL;
+	for (unsigned int i = 0; i < vkms_config_plane->supported_formats_count; i++) {
+		if (vkms_config_plane->supported_formats[i] == drm_format)
+			return 0;
+	}
+	u32 *new_ptr = krealloc_array(vkms_config_plane->supported_formats,
+				      vkms_config_plane->supported_formats_count + 1,
+				      sizeof(*vkms_config_plane->supported_formats), GFP_KERNEL);
+	if (!new_ptr)
+		return -ENOMEM;
+
+	vkms_config_plane->supported_formats = new_ptr;
+	vkms_config_plane->supported_formats[vkms_config_plane->supported_formats_count] = drm_format;
+	vkms_config_plane->supported_formats_count++;
+
+	return 0;
+}
+
+void vkms_config_plane_remove_all_formats(struct vkms_config_plane *vkms_config_plane)
+{
+	vkms_config_plane->supported_formats_count = 0;
+}
+
+void vkms_config_plane_remove_format(struct vkms_config_plane *vkms_config_plane, u32 drm_format)
+{
+	for (unsigned int i = 0; i < vkms_config_plane->supported_formats_count; i++) {
+		if (vkms_config_plane->supported_formats[i] == drm_format) {
+			vkms_config_plane->supported_formats[i] = vkms_config_plane->supported_formats[vkms_config_plane->supported_formats_count - 1];
+			vkms_config_plane->supported_formats_count--;
+		}
+	}
+}
+
 void vkms_config_delete_plane(struct vkms_config_plane *vkms_config_plane,
 			      struct vkms_config *vkms_config)
 {
@@ -213,6 +328,7 @@ void vkms_config_delete_plane(struct vkms_config_plane *vkms_config_plane,
 		}
 	}
 
+	kfree(vkms_config_plane->supported_formats);
 	kfree(vkms_config_plane->name);
 	kfree(vkms_config_plane);
 }
