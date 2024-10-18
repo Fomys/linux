@@ -1137,10 +1137,26 @@ static ssize_t device_enable_store(struct config_item *item,
 	return (ssize_t)count;
 }
 
+static ssize_t device_device_name_show(struct config_item *item, char *page)
+{
+	struct vkms_configfs_device *configfs_device = config_item_to_vkms_configfs_device(item);
+
+	scoped_guard(mutex, &configfs_device->lock)
+	{
+		if (configfs_device->enabled)
+			return sprintf(page, "%s\n",
+				       dev_name(configfs_device->vkms_config->dev->drm.dev));
+		return -EINVAL;
+	}
+	return -EINVAL;
+}
+
 CONFIGFS_ATTR(device_, enable);
+CONFIGFS_ATTR_RO(device_, device_name);
 
 static struct configfs_attribute *device_attrs[] = {
 	&device_attr_enable,
+	&device_attr_device_name,
 	NULL,
 };
 
