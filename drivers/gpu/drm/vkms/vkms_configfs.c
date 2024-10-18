@@ -1024,12 +1024,31 @@ static ssize_t connector_status_store(struct config_item *item,
 	return count;
 }
 
+static ssize_t connector_id_show(struct config_item *item, char *page)
+{
+	struct vkms_configfs_device *vkms_configfs =
+		connector_child_item_to_vkms_configfs_device(item);
+	struct vkms_config_connector *connector;
+
+	scoped_guard(mutex, &vkms_configfs->lock)
+	{
+		connector = connector_item_to_vkms_configfs_connector(item)->vkms_config_connector;
+		if (vkms_configfs->enabled)
+			return sprintf(page, "%d\n",
+				       connector->connector->base.base.id);
+		return -EINVAL;
+	}
+	return -EINVAL;
+}
+
 CONFIGFS_ATTR(connector_, type);
 CONFIGFS_ATTR(connector_, status);
+CONFIGFS_ATTR_RO(connector_, id);
 
 static struct configfs_attribute *connector_attrs[] = {
 	&connector_attr_type,
 	&connector_attr_status,
+	&connector_attr_id,
 	NULL,
 };
 
