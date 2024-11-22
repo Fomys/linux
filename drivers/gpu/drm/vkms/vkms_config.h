@@ -109,6 +109,7 @@ struct vkms_config_encoder {
 
 	const char *name;
 	struct xarray possible_crtcs;
+	char type;
 
 	/* Internal usage */
 	struct drm_encoder *encoder;
@@ -377,6 +378,27 @@ static inline void
 vkms_config_plane_set_supported_color_range(struct vkms_config_plane *plane_cfg, unsigned int supported_color_range)
 {
 	plane_cfg->supported_color_range = supported_color_range;
+}
+
+/**
+ * vkms_config_encoder_get_type() - Return the encoder type
+ * @encoder_cfg: Encoder to get the type from
+ */
+static inline char
+vkms_config_encoder_get_type(struct vkms_config_encoder *encoder_cfg)
+{
+	return encoder_cfg->type;
+}
+
+/**
+ * vkms_config_encoder_set_type() - Set the encoder type
+ * @encoder_cfg: Encoder to set the type to
+ * @type: New encoder type
+ */
+static inline void
+vkms_config_encoder_set_type(struct vkms_config_encoder *encoder_cfg, char type)
+{
+	encoder_cfg->type = type;
 }
 
 /**
