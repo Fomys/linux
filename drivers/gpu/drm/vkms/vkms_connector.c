@@ -54,16 +54,9 @@ static int vkms_conn_get_modes(struct drm_connector *connector)
 {
 	const struct drm_edid *drm_edid = NULL;
 	int count;
-	struct vkms_config_connector *connector_cfg;
-	struct vkms_device *vkmsdev = drm_device_to_vkms_device(connector->dev);
 	struct vkms_config_connector *context = NULL;
 
-	list_for_each_entry(connector_cfg, &vkmsdev->config->connectors, link) {
-		if (connector_cfg->connector == connector) {
-			context = connector_cfg;
-			break;
-		}
-	}
+	context = vkms_config_connector_from_vkms_connector(connector);
 	if (context)
 		drm_edid = drm_edid_read_custom(connector, vkms_connector_read_block, context);
 

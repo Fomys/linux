@@ -240,7 +240,7 @@ void vkms_destroy(struct vkms_config *config)
 	devres_release_group(&pdev->dev, NULL);
 	platform_device_unregister(pdev);
 
-	config->dev = NULL;
+	vkms_config_disconnect_dev(config);
 }
 
 static void __exit vkms_exit(void)

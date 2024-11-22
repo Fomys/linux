@@ -120,10 +120,11 @@ struct vkms_config_connector {
 	char edid_blob[PAGE_SIZE];
 	int edid_blob_len;
 
-	/* Internal usage */
+	/* Set only when the device is enabled */
 	struct vkms_connector *connector;
 };
 
+void vkms_config_disconnect_dev(struct vkms_config *vkms_config);
 void vkms_config_connector_update_status(struct vkms_config_connector *vkms_config_connector,
 					 enum drm_connector_status status);
 

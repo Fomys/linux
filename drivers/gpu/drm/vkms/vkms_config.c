@@ -204,6 +204,29 @@ struct vkms_config_connector *vkms_config_create_connector(struct vkms_config *v
 	return vkms_config_connector;
 }
 
+void vkms_config_disconnect_dev(struct vkms_config *vkms_config)
+{
+	struct vkms_config_connector *connector, *tmp_connector;
+	struct vkms_config_encoder *encoder, *tmp_encoder;
+	struct vkms_config_plane *plane, *tmp_plane;
+	struct vkms_config_crtc *crtc, *tmp_crtc;
+
+	vkms_config->dev = NULL;
+
+	list_for_each_entry_safe(connector, tmp_connector, &vkms_config->connectors, link) {
+		connector->connector = NULL;
+	}
+	list_for_each_entry_safe(encoder, tmp_encoder, &vkms_config->encoders, link) {
+		encoder->encoder = NULL;
+	}
+	list_for_each_entry_safe(plane, tmp_plane, &vkms_config->planes, link) {
+		plane->plane = NULL;
+	}
+	list_for_each_entry_safe(crtc, tmp_crtc, &vkms_config->crtcs, link) {
+		crtc->output = NULL;
+	}
+}
+
 void vkms_config_connector_update_status(struct vkms_config_connector *vkms_config_connector,
 					 enum drm_connector_status status)
 {
