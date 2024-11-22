@@ -842,6 +842,56 @@ static void encoder_possible_crtcs_drop_link(struct config_item *src,
 	mutex_unlock(&encoder->dev->lock);
 }
 
+static ssize_t encoder_type_show(struct config_item *item, char *page)
+{
+	char encoder_type = DRM_MODE_ENCODER_NONE;
+	struct vkms_configfs_encoder *encoder = encoder_item_to_vkms_configfs_encoder(item);
+
+	scoped_guard(mutex, &encoder->dev->lock)
+	{
+		encoder_type = vkms_config_encoder_get_type(encoder->config);
+	}
+
+	return sprintf(page, "%u", encoder_type);
+}
+
+static ssize_t encoder_type_store(struct config_item *item,
+				  const char *page, size_t count)
+{
+	struct vkms_configfs_encoder *encoder = encoder_item_to_vkms_configfs_encoder(item);
+	int val = DRM_MODE_ENCODER_VIRTUAL;
+	int ret;
+
+	ret = kstrtouint(page, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val != DRM_MODE_ENCODER_DAC &&
+	    val != DRM_MODE_ENCODER_DPI &&
+	    val != DRM_MODE_ENCODER_DSI &&
+	    val != DRM_MODE_ENCODER_LVDS &&
+	    val != DRM_MODE_ENCODER_NONE &&
+	    val != DRM_MODE_ENCODER_TMDS &&
+	    val != DRM_MODE_ENCODER_TVDAC &&
+	    val != DRM_MODE_ENCODER_VIRTUAL)
+		return -EINVAL;
+
+	scoped_guard(mutex, &encoder->dev->lock) {
+		if (encoder->dev->enabled)
+			return -EINVAL;
+		vkms_config_encoder_set_type(encoder->config, val);
+	}
+
+	return count;
+}
+
+CONFIGFS_ATTR(encoder_, type);
+
+static struct configfs_attribute *encoder_attrs[] = {
+	&encoder_attr_type,
+	NULL,
+};
+
 static struct configfs_item_operations encoder_possible_crtcs_item_operations = {
 	.allow_link	= encoder_possible_crtcs_allow_link,
 	.drop_link	= encoder_possible_crtcs_drop_link,
@@ -872,6 +922,7 @@ static struct configfs_item_operations encoder_item_operations = {
 
 static const struct config_item_type encoder_item_type = {
 	.ct_item_ops	= &encoder_item_operations,
+	.ct_attrs       = encoder_attrs,
 	.ct_owner	= THIS_MODULE,
 };
 
