@@ -1024,6 +1024,37 @@ static ssize_t connector_status_store(struct config_item *item,
 	return count;
 }
 
+static ssize_t connector_edid_show(struct config_item *item, char *page)
+{
+	struct vkms_config_connector *connector;
+	struct vkms_configfs_device *vkms_configfs = connector_child_item_to_vkms_configfs_device(item);
+
+	scoped_guard(mutex, &vkms_configfs->lock)
+	{
+		connector = connector_item_to_vkms_configfs_connector(item)->vkms_config_connector;
+		memcpy(page, &connector->edid_blob, connector->edid_blob_len);
+		return connector->edid_blob_len;
+	}
+
+	return -EINVAL;
+}
+
+static ssize_t connector_edid_store(struct config_item *item,
+				    const char *page, size_t count)
+{
+	struct vkms_configfs_device *vkms_configfs = connector_child_item_to_vkms_configfs_device(item);
+
+	scoped_guard(mutex, &vkms_configfs->lock)
+	{
+		struct vkms_config_connector *connector =
+			connector_item_to_vkms_configfs_connector(item)->vkms_config_connector;
+		memcpy(&connector->edid_blob, page, count);
+		connector->edid_blob_len = count;
+	}
+
+	return count;
+}
+
 static ssize_t connector_id_show(struct config_item *item, char *page)
 {
 	struct vkms_configfs_device *vkms_configfs =
@@ -1043,12 +1074,14 @@ static ssize_t connector_id_show(struct config_item *item, char *page)
 
 CONFIGFS_ATTR(connector_, type);
 CONFIGFS_ATTR(connector_, status);
+CONFIGFS_ATTR(connector_, edid);
 CONFIGFS_ATTR_RO(connector_, id);
 
 static struct configfs_attribute *connector_attrs[] = {
 	&connector_attr_type,
 	&connector_attr_status,
 	&connector_attr_id,
+	&connector_attr_edid,
 	NULL,
 };
 
