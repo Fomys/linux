@@ -56,6 +56,7 @@ struct vkms_config_crtc {
  * @link: Link to the others encoders
  * @name: Name of the encoder
  * @possible_crtcs: List of CRTC that can be used with this encoder
+ * @type: Type of encoder, see drm_mode.h, DRM_MODE_ENCODER_*
  * @encoder: Internal usage. This pointer should never be considered as valid. It can be used to
  *         store a temporary reference to a vkms encoder during device creation. This pointer is
  *         not managed by the configuration and must be managed by other means.
@@ -65,6 +66,7 @@ struct vkms_config_encoder {
 
 	char *name;
 	struct xarray possible_crtcs;
+	char type;
 
 	/* Internal usage */
 	struct drm_encoder *encoder;

@@ -242,6 +242,7 @@ struct vkms_config_encoder *vkms_config_create_encoder(struct vkms_config *vkms_
 	if (!vkms_config_encoder)
 		return NULL;
 
+	vkms_config_encoder->type = DRM_MODE_ENCODER_VIRTUAL;
 	list_add(&vkms_config_encoder->link, &vkms_config->encoders);
 	xa_init_flags(&vkms_config_encoder->possible_crtcs, XA_FLAGS_ALLOC);
 
