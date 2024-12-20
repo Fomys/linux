@@ -1073,4 +1073,6 @@ __drm_dp_mst_state_iter_get(struct drm_atomic_state *state,
 	for ((__i) = 0; (__i) < (__state)->num_private_objs; (__i)++) \
 		for_each_if(__drm_dp_mst_state_iter_get((__state), &(mgr), NULL, &(new_state), (__i)))
 
+void drm_dp_encode_sideband_msg_hdr(struct drm_dp_sideband_msg_hdr *hdr, u8 *buf, int *len);
+
 #endif
