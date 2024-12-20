@@ -794,7 +794,7 @@ static void drm_dp_sideband_encode_link_address(struct drm_dp_sideband_msg_reply
 	}
 }
 
-static void drm_dp_encode_sideband_reply(struct drm_dp_sideband_msg_reply_body *rep,
+void drm_dp_encode_sideband_reply(struct drm_dp_sideband_msg_reply_body *rep,
 					 struct drm_dp_sideband_msg_tx *raw)
 {
 	int idx = 0;
@@ -824,6 +824,7 @@ static void drm_dp_encode_sideband_reply(struct drm_dp_sideband_msg_reply_body *
 		break;
 	}
 }
+EXPORT_SYMBOL(drm_dp_encode_sideband_reply);
 
 static int drm_dp_sideband_msg_set_header(struct drm_dp_sideband_msg_rx *msg,
 					  struct drm_dp_sideband_msg_hdr *hdr,
