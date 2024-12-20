@@ -803,6 +803,26 @@ static void drm_dp_encode_sideband_reply(struct drm_dp_sideband_msg_reply_body *
 	buf[idx++] = (rep->reply_type & 0x1) << 7 | (rep->req_type & 0x7f);
 
 	raw->cur_len = idx;
+
+	switch (rep->req_type) {
+	case DP_CLEAR_PAYLOAD_ID_TABLE:
+		break;
+	case DP_LINK_ADDRESS:
+		drm_dp_sideband_encode_link_address(rep, raw);
+		break;
+	case DP_ENUM_PATH_RESOURCES:
+		drm_dp_sideband_encode_path_resources(rep, raw);
+		break;
+	case DP_REMOTE_I2C_READ:
+		if (rep->reply_type == DP_SIDEBAND_REPLY_ACK)
+			drm_dp_sideband_encode_aux_i2c_read(rep, raw);
+		else
+			DRM_WARN("Attempt to encode unsupported response type: %s (NACK)\n", drm_dp_mst_req_type_str(rep->req_type));
+		break;
+	default:
+		DRM_WARN("Attempt to encode unsupported response type: %s\n", drm_dp_mst_req_type_str(rep->req_type));
+		break;
+	}
 }
 
 static int drm_dp_sideband_msg_set_header(struct drm_dp_sideband_msg_rx *msg,
