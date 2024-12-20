@@ -1077,5 +1077,5 @@ bool drm_dp_decode_sideband_msg_hdr(const struct drm_dp_mst_topology_mgr *mgr,
 				    struct drm_dp_sideband_msg_hdr *hdr,
 				    u8 *buf, int buflen, u8 *hdrlen);
 void drm_dp_encode_sideband_msg_hdr(struct drm_dp_sideband_msg_hdr *hdr, u8 *buf, int *len);
-
+void drm_dp_crc_sideband_chunk_req(u8 *msg, u8 len);
 #endif

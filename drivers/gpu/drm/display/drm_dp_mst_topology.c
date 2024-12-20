@@ -734,13 +734,14 @@ drm_dp_mst_dump_sideband_msg_tx(struct drm_printer *p,
 	}
 }
 
-static void drm_dp_crc_sideband_chunk_req(u8 *msg, u8 len)
+void drm_dp_crc_sideband_chunk_req(u8 *msg, u8 len)
 {
 	u8 crc4;
 
 	crc4 = drm_dp_msg_data_crc4(msg, len);
 	msg[len] = crc4;
 }
+EXPORT_SYMBOL(drm_dp_crc_sideband_chunk_req);
 
 static void drm_dp_encode_sideband_reply(struct drm_dp_sideband_msg_reply_body *rep,
 					 struct drm_dp_sideband_msg_tx *raw)
