@@ -316,7 +316,7 @@ static bool drm_dp_decode_sideband_msg_hdr(const struct drm_dp_mst_topology_mgr 
 	crc4 = drm_dp_msg_header_crc4(buf, (len * 2) - 1);
 
 	if ((crc4 & 0xf) != (buf[len - 1] & 0xf)) {
-		drm_dbg_kms(mgr->dev, "crc4 mismatch 0x%x 0x%x\n", crc4, buf[len - 1]);
+		drm_dbg_kms(mgr ? mgr->dev : NULL, "crc4 mismatch 0x%x 0x%x\n", crc4, buf[len - 1]);
 		return false;
 	}
 
