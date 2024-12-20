@@ -278,7 +278,7 @@ static inline u8 drm_dp_calc_sb_hdr_size(struct drm_dp_sideband_msg_hdr *hdr)
 	return size;
 }
 
-static void drm_dp_encode_sideband_msg_hdr(struct drm_dp_sideband_msg_hdr *hdr,
+void drm_dp_encode_sideband_msg_hdr(struct drm_dp_sideband_msg_hdr *hdr,
 					   u8 *buf, int *len)
 {
 	int idx = 0;
@@ -297,6 +297,7 @@ static void drm_dp_encode_sideband_msg_hdr(struct drm_dp_sideband_msg_hdr *hdr,
 
 	*len = idx;
 }
+EXPORT_SYMBOL(drm_dp_encode_sideband_msg_hdr);
 
 static bool drm_dp_decode_sideband_msg_hdr(const struct drm_dp_mst_topology_mgr *mgr,
 					   struct drm_dp_sideband_msg_hdr *hdr,
