@@ -754,6 +754,36 @@ static void drm_dp_sideband_encode_path_resources(struct drm_dp_sideband_msg_rep
 	raw->msg[raw->cur_len++] = (body->u.path_resources.avail_payload_bw_number & 0xFF);
 }
 
+static void drm_dp_sideband_encode_link_address(struct drm_dp_sideband_msg_reply_body *body,
+						struct drm_dp_sideband_msg_tx *raw)
+{
+	export_guid(&raw->msg[raw->cur_len], &body->u.link_addr.guid);
+	raw->cur_len += 16;
+
+	raw->msg[raw->cur_len++] = body->u.link_addr.nports;
+	for (int i = 0; i < body->u.link_addr.nports; i++) {
+		struct drm_dp_link_addr_reply_port *port = &body->u.link_addr.ports[i];
+
+		raw->msg[raw->cur_len++] = port->input_port << 7 | port->peer_device_type << 4 |
+					   port->port_number;
+		raw->msg[raw->cur_len] = port->mcs << 7 | port->ddps << 6;
+		if (port->peer_device_type == 0x5) {
+			pr_err("Missing support for peer_device_type == 0b101\n");
+			// TODO
+		}
+		if (port->input_port == 0) {
+			raw->msg[raw->cur_len++] |= port->legacy_device_plug_status;
+			raw->msg[raw->cur_len++] = port->dpcd_revision;
+			export_guid(&raw->msg[raw->cur_len], &port->peer_guid);
+			raw->cur_len += 16;
+			raw->msg[raw->cur_len++] = port->num_sdp_streams << 4 |
+						   port->num_sdp_stream_sinks;
+		} else {
+			raw->cur_len++;
+		}
+	}
+}
+
 static void drm_dp_encode_sideband_reply(struct drm_dp_sideband_msg_reply_body *rep,
 					 struct drm_dp_sideband_msg_tx *raw)
 {
