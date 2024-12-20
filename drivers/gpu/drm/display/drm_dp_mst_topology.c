@@ -698,7 +698,7 @@ drm_dp_dump_sideband_msg_req_body(const struct drm_dp_sideband_msg_req_body *req
 	}
 #undef P
 }
-EXPORT_SYMBOL_FOR_TESTS_ONLY(drm_dp_dump_sideband_msg_req_body);
+EXPORT_SYMBOL(drm_dp_dump_sideband_msg_req_body);
 
 static inline void
 drm_dp_mst_dump_sideband_msg_tx(struct drm_printer *p,

@@ -17,8 +17,5 @@ struct drm_printer;
 void
 drm_dp_encode_sideband_req(const struct drm_dp_sideband_msg_req_body *req,
 			   struct drm_dp_sideband_msg_tx *raw);
-void
-drm_dp_dump_sideband_msg_req_body(const struct drm_dp_sideband_msg_req_body *req,
-				  int indent, struct drm_printer *printer);
 
 #endif /* !_DRM_DP_MST_HELPER_INTERNAL_H_ */
