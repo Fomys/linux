@@ -743,6 +743,17 @@ void drm_dp_crc_sideband_chunk_req(u8 *msg, u8 len)
 }
 EXPORT_SYMBOL(drm_dp_crc_sideband_chunk_req);
 
+static void drm_dp_sideband_encode_path_resources(struct drm_dp_sideband_msg_reply_body *body,
+						  struct drm_dp_sideband_msg_tx *raw)
+{
+	raw->msg[raw->cur_len++] = body->u.path_resources.port_number << 4 |
+				   body->u.path_resources.fec_capable;
+	raw->msg[raw->cur_len++] = (body->u.path_resources.full_payload_bw_number & 0xFF00) >> 8;
+	raw->msg[raw->cur_len++] = (body->u.path_resources.full_payload_bw_number & 0xFF);
+	raw->msg[raw->cur_len++] = (body->u.path_resources.avail_payload_bw_number & 0xFF00) >> 8;
+	raw->msg[raw->cur_len++] = (body->u.path_resources.avail_payload_bw_number & 0xFF);
+}
+
 static void drm_dp_encode_sideband_reply(struct drm_dp_sideband_msg_reply_body *rep,
 					 struct drm_dp_sideband_msg_tx *raw)
 {
