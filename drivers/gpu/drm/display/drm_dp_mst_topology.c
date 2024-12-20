@@ -299,7 +299,7 @@ void drm_dp_encode_sideband_msg_hdr(struct drm_dp_sideband_msg_hdr *hdr,
 }
 EXPORT_SYMBOL(drm_dp_encode_sideband_msg_hdr);
 
-static bool drm_dp_decode_sideband_msg_hdr(const struct drm_dp_mst_topology_mgr *mgr,
+bool drm_dp_decode_sideband_msg_hdr(const struct drm_dp_mst_topology_mgr *mgr,
 					   struct drm_dp_sideband_msg_hdr *hdr,
 					   u8 *buf, int buflen, u8 *hdrlen)
 {
@@ -340,6 +340,7 @@ static bool drm_dp_decode_sideband_msg_hdr(const struct drm_dp_mst_topology_mgr 
 	*hdrlen = idx;
 	return true;
 }
+EXPORT_SYMBOL(drm_dp_decode_sideband_msg_hdr);
 
 void
 drm_dp_encode_sideband_req(const struct drm_dp_sideband_msg_req_body *req,
