@@ -1082,4 +1082,5 @@ void drm_dp_encode_sideband_reply(struct drm_dp_sideband_msg_reply_body *rep,
 					 struct drm_dp_sideband_msg_tx *raw);
 int drm_dp_decode_sideband_req(const struct drm_dp_sideband_msg_tx *raw,
 			       struct drm_dp_sideband_msg_req_body *req);
+const char *drm_dp_mst_req_type_str(u8 req_type);
 #endif
