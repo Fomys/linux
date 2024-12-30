@@ -151,6 +151,10 @@ static void vkms_mst_emulation_down_req_worker(struct work_struct *work)
 			if (emulator->sideband_helpers->clear_payload_id_table)
 				emulator->sideband_helpers->clear_payload_id_table(emulator, emulator->work_current_src, &req_hdr, &req, &emulator->rep_to_send_header, &rep);
 			break;
+		case DP_LINK_ADDRESS:
+			if (emulator->sideband_helpers->link_address)
+				emulator->sideband_helpers->link_address(emulator, emulator->work_current_src, &req_hdr, &req, &emulator->rep_to_send_header, &rep);
+			break;
 		default:
 			pr_err("Unsupported request %s, ignoring\n", drm_dp_mst_req_type_str(req.req_type));
 			break;
