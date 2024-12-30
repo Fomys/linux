@@ -98,7 +98,7 @@ static bool drm_dp_mst_port_downstream_of_branch(struct drm_dp_mst_port *port,
 
 #define DP_STR(x) [DP_ ## x] = #x
 
-static const char *drm_dp_mst_req_type_str(u8 req_type)
+const char *drm_dp_mst_req_type_str(u8 req_type)
 {
 	static const char * const req_type_str[] = {
 		DP_STR(GET_MSG_TRANSACTION_VERSION),
@@ -125,6 +125,7 @@ static const char *drm_dp_mst_req_type_str(u8 req_type)
 
 	return req_type_str[req_type];
 }
+EXPORT_SYMBOL(drm_dp_mst_req_type_str);
 
 #undef DP_STR
 #define DP_STR(x) [DP_NAK_ ## x] = #x
