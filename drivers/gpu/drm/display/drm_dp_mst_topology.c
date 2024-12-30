@@ -285,6 +285,8 @@ void drm_dp_encode_sideband_msg_hdr(struct drm_dp_sideband_msg_hdr *hdr,
 	int i;
 	u8 crc4;
 
+	WARN_ON((hdr->msg_len & 0x3f) != hdr->msg_len);
+
 	buf[idx++] = ((hdr->lct & 0xf) << 4) | (hdr->lcr & 0xf);
 	for (i = 0; i < (hdr->lct / 2); i++)
 		buf[idx++] = hdr->rad[i];
