@@ -1080,4 +1080,6 @@ void drm_dp_encode_sideband_msg_hdr(struct drm_dp_sideband_msg_hdr *hdr, u8 *buf
 void drm_dp_crc_sideband_chunk_req(u8 *msg, u8 len);
 void drm_dp_encode_sideband_reply(struct drm_dp_sideband_msg_reply_body *rep,
 					 struct drm_dp_sideband_msg_tx *raw);
+int drm_dp_decode_sideband_req(const struct drm_dp_sideband_msg_tx *raw,
+			       struct drm_dp_sideband_msg_req_body *req);
 #endif
