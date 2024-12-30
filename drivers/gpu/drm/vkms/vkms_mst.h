@@ -45,6 +45,11 @@ struct vkms_dpcd_memory {
 struct vkms_mst_emulator;
 
 struct vkms_mst_sideband_helpers {
+	void (*link_address)(struct vkms_mst_emulator *emulator, u8 port_id,
+			     struct drm_dp_sideband_msg_hdr *req_hdr,
+			     struct drm_dp_sideband_msg_req_body *req,
+			     struct drm_dp_sideband_msg_hdr *rep_hdr,
+			     struct drm_dp_sideband_msg_reply_body *rep);
 	void (*clear_payload_id_table)(struct vkms_mst_emulator *emulator, u8 port_id,
 				       const struct drm_dp_sideband_msg_hdr *req_hdr,
 				       const struct drm_dp_sideband_msg_req_body *req,
