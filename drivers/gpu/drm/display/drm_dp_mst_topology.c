@@ -754,6 +754,16 @@ static void drm_dp_sideband_encode_path_resources(struct drm_dp_sideband_msg_rep
 	raw->msg[raw->cur_len++] = (body->u.path_resources.avail_payload_bw_number & 0xFF);
 }
 
+static void drm_dp_sideband_encode_aux_i2c_read(struct drm_dp_sideband_msg_reply_body *body,
+						  struct drm_dp_sideband_msg_tx *raw)
+{
+	raw->msg[raw->cur_len++] = body->u.remote_i2c_read_ack.port_number & 0x0F;
+	raw->msg[raw->cur_len++] = body->u.remote_i2c_read_ack.num_bytes;
+	for(int i = 0; i < body->u.remote_i2c_read_ack.num_bytes; i++) {
+		raw->msg[raw->cur_len++] = body->u.remote_i2c_read_ack.bytes[i];
+	}
+}
+
 static void drm_dp_sideband_encode_link_address(struct drm_dp_sideband_msg_reply_body *body,
 						struct drm_dp_sideband_msg_tx *raw)
 {
