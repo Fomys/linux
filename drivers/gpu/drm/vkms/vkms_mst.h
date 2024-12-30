@@ -55,6 +55,16 @@ struct vkms_mst_sideband_helpers {
 				       const struct drm_dp_sideband_msg_req_body *req,
 				       struct drm_dp_sideband_msg_hdr *rep_hdr,
 				       struct drm_dp_sideband_msg_reply_body *rep);
+	void (*enum_path_ressources)(struct vkms_mst_emulator *emulator, u8 port_id,
+						         const struct drm_dp_sideband_msg_hdr *req_hdr,
+						         const struct drm_dp_sideband_msg_req_body *req,
+						         struct drm_dp_sideband_msg_hdr *rep_hdr,
+						         struct drm_dp_sideband_msg_reply_body *rep);
+	void (*remote_i2c_read)(struct vkms_mst_emulator *emulator, u8 port_id,
+						    const struct drm_dp_sideband_msg_hdr *req_hdr,
+						    const struct drm_dp_sideband_msg_req_body *req,
+						    struct drm_dp_sideband_msg_hdr *rep_hdr,
+						    struct drm_dp_sideband_msg_reply_body *rep);
 };
 
 extern struct vkms_mst_sideband_helpers vkms_mst_sideband_helpers_default;
