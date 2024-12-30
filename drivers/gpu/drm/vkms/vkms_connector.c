@@ -37,6 +37,30 @@ vkms_mst_detect_ctx(struct drm_connector *connector,
 	return connection_status;
 }
 
+static int vkms_mst_get_modes(struct drm_connector *connector)
+{
+	struct vkms_mst_connector *vkms_mst_connector =
+		container_of(connector, struct vkms_mst_connector, base);
+	const struct drm_edid *drm_edid;
+	int count;
+
+	if (drm_connector_is_unregistered(connector)) {
+		return 0;
+	}
+
+	drm_edid = drm_dp_mst_edid_read(
+		connector, vkms_mst_connector->mst_output_port->mgr,
+		vkms_mst_connector->mst_output_port);
+
+	drm_edid_connector_update(connector, drm_edid);
+
+	count = drm_edid_connector_add_modes(connector);
+
+	drm_edid_free(drm_edid);
+
+	return count;
+}
+
 static struct drm_encoder *
 vkms_mst_atomic_best_encoder(struct drm_connector *connector,
 			     struct drm_atomic_state *state)
@@ -52,7 +76,7 @@ vkms_mst_atomic_best_encoder(struct drm_connector *connector,
 }
 
 static const struct drm_connector_helper_funcs vkms_mst_connector_helper_funcs = {
-	.get_modes = drm_connector_helper_get_modes,
+	.get_modes = vkms_mst_get_modes,
 	.detect_ctx = vkms_mst_detect_ctx,
 	.atomic_best_encoder = vkms_mst_atomic_best_encoder
 };
