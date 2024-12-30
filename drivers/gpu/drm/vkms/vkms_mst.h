@@ -44,6 +44,16 @@ struct vkms_dpcd_memory {
 
 struct vkms_mst_emulator;
 
+struct vkms_mst_sideband_helpers {
+	void (*clear_payload_id_table)(struct vkms_mst_emulator *emulator, u8 port_id,
+				       const struct drm_dp_sideband_msg_hdr *req_hdr,
+				       const struct drm_dp_sideband_msg_req_body *req,
+				       struct drm_dp_sideband_msg_hdr *rep_hdr,
+				       struct drm_dp_sideband_msg_reply_body *rep);
+};
+
+extern struct vkms_mst_sideband_helpers vkms_mst_sideband_helpers_default;
+
 /**
  * struct vkms_mst_transfer_helpers - Helpers to emulate a memory transfer over
  * dp-aux channel.
@@ -150,6 +160,7 @@ struct vkms_mst_emulator {
 	u8 *rep_to_send_content;
 
 	const struct vkms_mst_transfer_helpers *transfer_helpers;
+	const struct vkms_mst_sideband_helpers *sideband_helpers;
 
 	struct vkms_mst_emulator_port ports[VKMS_MST_MAX_PORTS];
 	const char *name;
