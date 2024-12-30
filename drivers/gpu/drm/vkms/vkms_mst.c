@@ -369,6 +369,18 @@ ssize_t vkms_mst_emulator_transfer_read_default(struct vkms_mst_emulator *emulat
 			continue;
 		}
 
+		if (curr_offset >= DP_GUID && curr_offset <= DP_GUID + 0x10) {
+			int msg_end =
+				min(DP_SIDEBAND_MSG_DOWN_REP_BASE + 0x10, msg->address + msg->size);
+			int msg_size = msg_end - curr_offset;
+
+			export_guid(buffer, &emulator->dpcd_memory.GUID);
+
+			buffer += msg_size;
+			i += msg_size;
+			continue;
+		}
+
 		switch (curr_offset) {
 		case DP_DPCD_REV:
 			*buffer = emulator->dpcd_memory.DPCD_REV;
