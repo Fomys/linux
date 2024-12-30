@@ -155,6 +155,14 @@ static void vkms_mst_emulation_down_req_worker(struct work_struct *work)
 			if (emulator->sideband_helpers->link_address)
 				emulator->sideband_helpers->link_address(emulator, emulator->work_current_src, &req_hdr, &req, &emulator->rep_to_send_header, &rep);
 			break;
+		case DP_ENUM_PATH_RESOURCES:
+			if (emulator->sideband_helpers->enum_path_ressources)
+				emulator->sideband_helpers->enum_path_ressources(emulator, emulator->work_current_src, &req_hdr, &req, &emulator->rep_to_send_header, &rep);
+			break;
+		case DP_REMOTE_I2C_READ:
+			if (emulator->sideband_helpers->remote_i2c_read)
+				emulator->sideband_helpers->remote_i2c_read(emulator, emulator->work_current_src, &req_hdr, &req, &emulator->rep_to_send_header, &rep);
+			break;
 		default:
 			pr_err("Unsupported request %s, ignoring\n", drm_dp_mst_req_type_str(req.req_type));
 			break;
