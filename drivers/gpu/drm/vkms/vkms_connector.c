@@ -173,7 +173,9 @@ static int vkms_conn_get_modes(struct drm_connector *connector)
 	struct vkms_config_connector *context = NULL;
 
 	context = vkms_connector->connector_cfg;
-	if (context)
+	if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort && context->mst_support)
+		drm_edid = drm_edid_read_ddc(connector, &vkms_connector->aux.ddc);
+	else if (context)
 		drm_edid = drm_edid_read_custom(connector, vkms_connector_read_block, context);
 
 	/*
