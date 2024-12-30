@@ -605,7 +605,7 @@ drm_dp_decode_sideband_req(const struct drm_dp_sideband_msg_tx *raw,
 
 	return 0;
 }
-EXPORT_SYMBOL_FOR_TESTS_ONLY(drm_dp_decode_sideband_req);
+EXPORT_SYMBOL(drm_dp_decode_sideband_req);
 
 void
 drm_dp_dump_sideband_msg_req_body(const struct drm_dp_sideband_msg_req_body *req,
