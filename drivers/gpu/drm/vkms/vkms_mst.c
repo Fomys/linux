@@ -145,10 +145,16 @@ static void vkms_mst_emulation_down_req_worker(struct work_struct *work)
 	guid_copy(&rep.u.nak.guid, &emulator->dpcd_memory.GUID);
 	rep.u.nak.reason = DP_NAK_BAD_PARAM;
 
-	switch (req.req_type) {
-	default:
-		pr_err("Unsupported request %s, ignoring\n", drm_dp_mst_req_type_str(req.req_type));
-		break;
+	if (emulator->sideband_helpers) {
+		switch (req.req_type) {
+		case DP_CLEAR_PAYLOAD_ID_TABLE:
+			if (emulator->sideband_helpers->clear_payload_id_table)
+				emulator->sideband_helpers->clear_payload_id_table(emulator, emulator->work_current_src, &req_hdr, &req, &emulator->rep_to_send_header, &rep);
+			break;
+		default:
+			pr_err("Unsupported request %s, ignoring\n", drm_dp_mst_req_type_str(req.req_type));
+			break;
+		}
 	}
 
 	drm_dp_encode_sideband_reply(&rep, &raw_rep);
