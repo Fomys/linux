@@ -185,6 +185,10 @@ struct vkms_mst_emulator {
 	// TODO: Est ce que ça fait encore du jardinage
 	u8 *rep_to_send_content;
 
+	u8 *rep_pending_content;
+	u8 rep_pending_content_len;
+	struct drm_dp_sideband_msg_hdr rep_pending_header;
+
 	const struct vkms_mst_transfer_helpers *transfer_helpers;
 	const struct vkms_mst_sideband_helpers *sideband_helpers;
 	const struct vkms_mst_emulator_helpers *helpers;
