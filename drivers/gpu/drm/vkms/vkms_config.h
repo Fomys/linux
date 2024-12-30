@@ -135,6 +135,7 @@ struct vkms_config_connector {
 	enum drm_connector_status status;
 	u8 *edid;
 	unsigned int edid_len;
+	bool mst_support;
 	struct xarray possible_encoders;
 
 	/* Internal usage */
