@@ -203,6 +203,20 @@ struct vkms_connector *vkms_connector_init(struct vkms_device *vkmsdev,
 	drm_connector_helper_add(&connector->base, &vkms_conn_helper_funcs);
 
 	if (vkms_config_connector_get_type(connector_cfg) == DRM_MODE_CONNECTOR_DisplayPort && connector_cfg->mst_support) {
+		connector->mst_encoders = drmm_kzalloc(dev, sizeof(*connector->mst_encoders) * connector_cfg->encoder_count, GFP_KERNEL);
+		for (int i = 0; i < connector_cfg->encoder_count; i++) {
+			struct drm_crtc *crtc;
+			drm_for_each_crtc(crtc, dev)
+			{
+				connector->mst_encoders[i].possible_crtcs |= drm_crtc_mask(crtc);
+			}
+			drmm_encoder_init(dev,
+					  &connector->mst_encoders[i],
+					  NULL, DRM_MODE_ENCODER_DPMST,
+					  "MST %d", i);
+		}
+
+
 		connector->aux.transfer = vkms_connector_mst_transfer;
 		connector->aux.drm_dev = dev;
 		connector->aux.name = "MST AUX";
@@ -210,7 +224,7 @@ struct vkms_connector *vkms_connector_init(struct vkms_device *vkmsdev,
 
 		ret = drm_dp_mst_topology_mgr_init(
 			&connector->mst_mgr, dev, &connector->aux, 16,
-			3, // TODO: count them from the configured encoders
+			connector_cfg->encoder_count,
 			connector->base.base.id);
 
 		drm_dp_aux_register(&connector->aux);
