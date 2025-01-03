@@ -113,7 +113,10 @@ static enum drm_connector_status vkms_connector_detect(struct drm_connector *con
 	enum drm_connector_status status;
 
 	vkms_connector = drm_connector_to_vkms_connector(connector);
-	status = vkms_config_connector_get_status(vkms_connector->connector_cfg);
+	if (!vkms_connector->connector_cfg->mst_support)
+		status = vkms_config_connector_get_status(vkms_connector->connector_cfg);
+	else
+		status = connector_status_disconnected;
 
 	return status;
 }
