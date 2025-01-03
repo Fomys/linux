@@ -136,6 +136,7 @@ struct vkms_config_connector {
 	u8 *edid;
 	unsigned int edid_len;
 	bool mst_support;
+	int encoder_count;
 	struct xarray possible_encoders;
 
 	/* Internal usage */

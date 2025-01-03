@@ -21,6 +21,8 @@ struct vkms_connector {
 	struct drm_connector base;
 	struct drm_dp_mst_topology_mgr mst_mgr;
 	struct drm_dp_aux aux;
+	
+	struct drm_encoder *mst_encoders;
 
 	struct vkms_config_connector *connector_cfg;
 };
