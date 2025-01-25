@@ -229,25 +229,35 @@ static struct pixel_argb_u16 argb_u16_from_le16161616(__le16 a, __le16 r, __le16
 				       le16_to_cpu(b));
 }
 
-static struct pixel_argb_u16 argb_u16_from_RGB565(const __le16 *pixel)
-{
-	struct pixel_argb_u16 out_pixel;
-
-	s64 fp_rb_ratio = drm_fixp_div(drm_int2fixp(65535), drm_int2fixp(31));
-	s64 fp_g_ratio = drm_fixp_div(drm_int2fixp(65535), drm_int2fixp(63));
-
-	u16 rgb_565 = le16_to_cpu(*pixel);
-	s64 fp_r = drm_int2fixp((rgb_565 >> 11) & 0x1f);
-	s64 fp_g = drm_int2fixp((rgb_565 >> 5) & 0x3f);
-	s64 fp_b = drm_int2fixp(rgb_565 & 0x1f);
-
-	out_pixel.a = (u16)0xffff;
-	out_pixel.r = drm_fixp2int_round(drm_fixp_mul(fp_r, fp_rb_ratio));
-	out_pixel.g = drm_fixp2int_round(drm_fixp_mul(fp_g, fp_g_ratio));
-	out_pixel.b = drm_fixp2int_round(drm_fixp_mul(fp_b, fp_rb_ratio));
-
-	return out_pixel;
+#define argb_u16_from__le16(name, pixel_name, a_px, a_mask, r_px, r_mask, g_px, g_mask, b_px, b_mask)	\
+static struct pixel_argb_u16 name(const __le16 *le16_pixel)						\
+{													\
+	struct pixel_argb_u16 out_pixel;								\
+													\
+	s64 fp_a_ratio = drm_fixp_div(drm_int2fixp(65535), drm_int2fixp((a_mask)));			\
+	s64 fp_r_ratio = drm_fixp_div(drm_int2fixp(65535), drm_int2fixp((r_mask)));			\
+	s64 fp_g_ratio = drm_fixp_div(drm_int2fixp(65535), drm_int2fixp((g_mask)));			\
+	s64 fp_b_ratio = drm_fixp_div(drm_int2fixp(65535), drm_int2fixp((b_mask)));			\
+													\
+	u16 (pixel_name) = le16_to_cpu(*le16_pixel);							\
+	s64 fp_a = drm_int2fixp((a_px) & (a_mask));							\
+	s64 fp_r = drm_int2fixp((r_px) & (r_mask));							\
+	s64 fp_g = drm_int2fixp((g_px) & (g_mask));							\
+	s64 fp_b = drm_int2fixp((b_px) & (b_mask));							\
+													\
+	out_pixel.a = drm_fixp2int_round(drm_fixp_mul(fp_a, fp_a_ratio));				\
+	out_pixel.r = drm_fixp2int_round(drm_fixp_mul(fp_r, fp_r_ratio));				\
+	out_pixel.g = drm_fixp2int_round(drm_fixp_mul(fp_g, fp_g_ratio));				\
+	out_pixel.b = drm_fixp2int_round(drm_fixp_mul(fp_b, fp_b_ratio));				\
+													\
+	return out_pixel;										\
 }
+
+
+
+argb_u16_from__le16(argb_u16_from_RGB565, px,	0xF, 0xF,	px >> 11, 0x1F,	px >> 5, 0x3F,	px, 0x1F)
+argb_u16_from__le16(argb_u16_from_BGR565, px,	0xF, 0xF,	px, 0x1F,	px >> 5, 0x3F,	px >> 11, 0x1F)
+
 
 static struct pixel_argb_u16 argb_u16_from_gray8(u8 gray)
 {
@@ -257,26 +267,6 @@ static struct pixel_argb_u16 argb_u16_from_gray8(u8 gray)
 static struct pixel_argb_u16 argb_u16_from_grayu16(u16 gray)
 {
 	return argb_u16_from_u16161616(0xFFFF, gray, gray, gray);
-}
-
-static struct pixel_argb_u16 argb_u16_from_BGR565(const __le16 *pixel)
-{
-	struct pixel_argb_u16 out_pixel;
-
-	s64 fp_rb_ratio = drm_fixp_div(drm_int2fixp(65535), drm_int2fixp(31));
-	s64 fp_g_ratio = drm_fixp_div(drm_int2fixp(65535), drm_int2fixp(63));
-
-	u16 rgb_565 = le16_to_cpu(*pixel);
-	s64 fp_b = drm_int2fixp((rgb_565 >> 11) & 0x1f);
-	s64 fp_g = drm_int2fixp((rgb_565 >> 5) & 0x3f);
-	s64 fp_r = drm_int2fixp(rgb_565 & 0x1f);
-
-	out_pixel.a = (u16)0xffff;
-	out_pixel.b = drm_fixp2int_round(drm_fixp_mul(fp_b, fp_rb_ratio));
-	out_pixel.g = drm_fixp2int_round(drm_fixp_mul(fp_g, fp_g_ratio));
-	out_pixel.r = drm_fixp2int_round(drm_fixp_mul(fp_r, fp_rb_ratio));
-
-	return out_pixel;
 }
 
 VISIBLE_IF_KUNIT
@@ -470,8 +460,11 @@ READ_LINE_le16161616(ABGR16161616_read_line, px, px[3], px[0], px[1], px[2])
 READ_LINE_le16161616(XRGB16161616_read_line, px, cpu_to_le16(0xFFFF), px[2], px[1], px[0])
 READ_LINE_le16161616(XBGR16161616_read_line, px, cpu_to_le16(0xFFFF), px[0], px[1], px[2])
 
-READ_LINE(RGB565_read_line, px, __le16, argb_u16_from_RGB565, px)
-READ_LINE(BGR565_read_line, px, __le16, argb_u16_from_BGR565, px)
+#define READ_LINE_le16(function_name, callback) \
+	READ_LINE(function_name, px, __le16, callback, px)
+
+READ_LINE_le16(RGB565_read_line, argb_u16_from_RGB565)
+READ_LINE_le16(BGR565_read_line, argb_u16_from_BGR565)
 
 READ_LINE(R8_read_line, px, u8, argb_u16_from_gray8, *px)
 
