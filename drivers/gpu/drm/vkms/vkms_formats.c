@@ -266,6 +266,16 @@ argb_u16_from__le16(argb_u16_from_BGRX4444, px,	0xF, 0xF,	px >> 4, 0xF,	px >> 8,
 argb_u16_from__le16(argb_u16_from_RGB565, px,	0xF, 0xF,	px >> 11, 0x1F,	px >> 5, 0x3F,	px, 0x1F)
 argb_u16_from__le16(argb_u16_from_BGR565, px,	0xF, 0xF,	px, 0x1F,	px >> 5, 0x3F,	px >> 11, 0x1F)
 
+argb_u16_from__le16(argb_u16_from_XRGB1555, px,	0xF, 0xF,	px >> 10, 0x1F,	px >> 5, 0x1F,	px, 0x1F)
+argb_u16_from__le16(argb_u16_from_XBGR1555, px,	0xF, 0xF,	px, 0x1F,	px >> 5, 0x1F,	px >> 10, 0x1F)
+argb_u16_from__le16(argb_u16_from_ARGB1555, px,	px >> 15, 0x1,	px >> 10, 0x1F,	px >> 5, 0x1F,	px, 0x1F)
+argb_u16_from__le16(argb_u16_from_ABGR1555, px,	px >> 15, 0x1,	px, 0x1F,	px >> 5, 0x1F,	px >> 10, 0x1F)
+
+argb_u16_from__le16(argb_u16_from_RGBX5551, px,	0xF, 0xF,	px >> 11, 0x1F,	px >> 6, 0x1F,	px >> 1, 0x1F)
+argb_u16_from__le16(argb_u16_from_BGRX5551, px,	0xF, 0xF,	px >> 1, 0x1F,	px >> 6, 0x1F,	px >> 11, 0x1F)
+argb_u16_from__le16(argb_u16_from_RGBA5551, px,	px, 0x1,	px >> 11, 0x1F,	px >> 6, 0x1F,	px >> 1, 0x1F)
+argb_u16_from__le16(argb_u16_from_BGRA5551, px,	px, 0x1,	px >> 1, 0x1F,	px >> 6, 0x1F,	px >> 11, 0x1F)
+
 
 static struct pixel_argb_u16 argb_u16_from_gray8(u8 gray)
 {
@@ -480,6 +490,17 @@ READ_LINE_le16(RGBA4444_read_line, argb_u16_from_RGBA4444)
 READ_LINE_le16(RGBX4444_read_line, argb_u16_from_RGBX4444)
 READ_LINE_le16(BGRA4444_read_line, argb_u16_from_BGRA4444)
 READ_LINE_le16(BGRX4444_read_line, argb_u16_from_BGRX4444)
+
+READ_LINE_le16(XRGB1555_read_line, argb_u16_from_XRGB1555)
+READ_LINE_le16(ARGB1555_read_line, argb_u16_from_ARGB1555)
+READ_LINE_le16(XBGR1555_read_line, argb_u16_from_XBGR1555)
+READ_LINE_le16(ABGR1555_read_line, argb_u16_from_ABGR1555)
+
+READ_LINE_le16(RGBA5551_read_line, argb_u16_from_RGBA5551)
+READ_LINE_le16(RGBX5551_read_line, argb_u16_from_RGBX5551)
+READ_LINE_le16(BGRA5551_read_line, argb_u16_from_BGRA5551)
+READ_LINE_le16(BGRX5551_read_line, argb_u16_from_BGRX5551)
+
 READ_LINE_le16(RGB565_read_line, argb_u16_from_RGB565)
 READ_LINE_le16(BGR565_read_line, argb_u16_from_BGR565)
 
@@ -786,6 +807,22 @@ pixel_read_line_t get_pixel_read_line_function(u32 format)
 		return &BGRA4444_read_line;
 	case DRM_FORMAT_BGRX4444:
 		return &BGRX4444_read_line;
+	case DRM_FORMAT_XRGB1555:
+		return &XRGB1555_read_line;
+	case DRM_FORMAT_ARGB1555:
+		return &ARGB1555_read_line;
+	case DRM_FORMAT_XBGR1555:
+		return &XBGR1555_read_line;
+	case DRM_FORMAT_ABGR1555:
+		return &ABGR1555_read_line;
+	case DRM_FORMAT_RGBA5551:
+		return &RGBA5551_read_line;
+	case DRM_FORMAT_RGBX5551:
+		return &RGBX5551_read_line;
+	case DRM_FORMAT_BGRA5551:
+		return &BGRA5551_read_line;
+	case DRM_FORMAT_BGRX5551:
+		return &BGRX5551_read_line;
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_NV16:
 	case DRM_FORMAT_NV24:
