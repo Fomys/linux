@@ -253,7 +253,15 @@ static struct pixel_argb_u16 name(const __le16 *le16_pixel)						\
 	return out_pixel;										\
 }
 
+argb_u16_from__le16(argb_u16_from_ARGB4444, px, px >> 12, 0xF,	px >> 8, 0xF,	px >> 4, 0xF,	px, 0xF)
+argb_u16_from__le16(argb_u16_from_ABGR4444, px, px >> 12, 0xF,	px, 0xF,	px >> 4, 0xF,	px >> 8, 0xF)
+argb_u16_from__le16(argb_u16_from_XRGB4444, px, 0xF, 0xF,	px >> 8, 0xF,	px >> 4, 0xF,	px, 0xF)
+argb_u16_from__le16(argb_u16_from_XBGR4444, px, 0xF, 0xF,	px, 0xF,	px >> 4, 0xF,	px >> 8, 0xF)
 
+argb_u16_from__le16(argb_u16_from_RGBA4444, px,	px, 0xF,	px >> 12, 0xF,	px >> 8, 0xF,	px >> 4, 0xF)
+argb_u16_from__le16(argb_u16_from_BGRA4444, px,	px, 0xF,	px >> 4, 0xF,	px >> 8, 0xF,	px >> 12, 0xF)
+argb_u16_from__le16(argb_u16_from_RGBX4444, px,	0xF, 0xF,	px >> 12, 0xF,	px >> 8, 0xF,	px >> 4, 0xF)
+argb_u16_from__le16(argb_u16_from_BGRX4444, px,	0xF, 0xF,	px >> 4, 0xF,	px >> 8, 0xF,	px >> 12, 0xF)
 
 argb_u16_from__le16(argb_u16_from_RGB565, px,	0xF, 0xF,	px >> 11, 0x1F,	px >> 5, 0x3F,	px, 0x1F)
 argb_u16_from__le16(argb_u16_from_BGR565, px,	0xF, 0xF,	px, 0x1F,	px >> 5, 0x3F,	px >> 11, 0x1F)
@@ -463,6 +471,15 @@ READ_LINE_le16161616(XBGR16161616_read_line, px, cpu_to_le16(0xFFFF), px[0], px[
 #define READ_LINE_le16(function_name, callback) \
 	READ_LINE(function_name, px, __le16, callback, px)
 
+READ_LINE_le16(XRGB4444_read_line, argb_u16_from_XRGB4444)
+READ_LINE_le16(ARGB4444_read_line, argb_u16_from_ARGB4444)
+READ_LINE_le16(XBGR4444_read_line, argb_u16_from_XBGR4444)
+READ_LINE_le16(ABGR4444_read_line, argb_u16_from_ABGR4444)
+
+READ_LINE_le16(RGBA4444_read_line, argb_u16_from_RGBA4444)
+READ_LINE_le16(RGBX4444_read_line, argb_u16_from_RGBX4444)
+READ_LINE_le16(BGRA4444_read_line, argb_u16_from_BGRA4444)
+READ_LINE_le16(BGRX4444_read_line, argb_u16_from_BGRX4444)
 READ_LINE_le16(RGB565_read_line, argb_u16_from_RGB565)
 READ_LINE_le16(BGR565_read_line, argb_u16_from_BGR565)
 
@@ -753,6 +770,22 @@ pixel_read_line_t get_pixel_read_line_function(u32 format)
 		return &RGB565_read_line;
 	case DRM_FORMAT_BGR565:
 		return &BGR565_read_line;
+	case DRM_FORMAT_XRGB4444:
+		return &XRGB4444_read_line;
+	case DRM_FORMAT_ARGB4444:
+		return &ARGB4444_read_line;
+	case DRM_FORMAT_XBGR4444:
+		return &XBGR4444_read_line;
+	case DRM_FORMAT_ABGR4444:
+		return &ABGR4444_read_line;
+	case DRM_FORMAT_RGBA4444:
+		return &RGBA4444_read_line;
+	case DRM_FORMAT_RGBX4444:
+		return &RGBX4444_read_line;
+	case DRM_FORMAT_BGRA4444:
+		return &BGRA4444_read_line;
+	case DRM_FORMAT_BGRX4444:
+		return &BGRX4444_read_line;
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_NV16:
 	case DRM_FORMAT_NV24:
