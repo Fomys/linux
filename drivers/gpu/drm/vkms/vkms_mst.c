@@ -2,6 +2,7 @@
 
 #include "vkms_mst.h"
 
+#include <drm/drm_print.h>
 #include <linux/string.h>
 
 #include <drm/display/drm_dp_mst_helper.h>
@@ -188,3 +189,12 @@ ssize_t vkms_mst_emulator_transfer_i2c_read_default(struct vkms_mst_emulator *em
 
 	return -EPROTO;
 }
+
+struct vkms_mst_transfer_helpers vkms_mst_transfer_helpers_default = {
+	.transfer = vkms_mst_emulator_transfer_default,
+	.transfer_read = vkms_mst_emulator_transfer_read_default,
+	.transfer_write = vkms_mst_emulator_transfer_write_default,
+	.transfer_i2c_read = vkms_mst_emulator_transfer_i2c_read_default,
+	.transfer_i2c_write = vkms_mst_emulator_transfer_i2c_write_default
+};
+EXPORT_SYMBOL(vkms_mst_transfer_helpers_default);
