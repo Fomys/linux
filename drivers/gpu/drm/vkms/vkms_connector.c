@@ -210,6 +210,18 @@ static const struct drm_connector_helper_funcs vkms_conn_helper_funcs = {
 	.best_encoder = vkms_conn_best_encoder,
 };
 
+static void vkms_connector_add_mst_emulator(struct vkms_connector *connector,
+					    struct vkms_mst_emulator *emulator)
+{
+	connector->vkms_mst_emulators =
+		krealloc(connector->vkms_mst_emulators,
+			 sizeof(*connector->vkms_mst_emulators) *
+				 (connector->mst_emulator_count + 1),
+			 GFP_KERNEL);
+	connector->vkms_mst_emulators[connector->mst_emulator_count] = emulator;
+	connector->mst_emulator_count++;
+}
+
 struct vkms_connector *vkms_connector_init(struct vkms_device *vkmsdev,
 					   struct vkms_config_connector *connector_cfg)
 {
