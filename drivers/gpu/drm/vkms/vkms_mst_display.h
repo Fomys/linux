@@ -5,6 +5,8 @@
 
 struct vkms_mst_display_emulator {
 	struct vkms_mst_emulator base;
+	u8 edid[256];
+	u8 current_edid_offset;
 };
 
 void vkms_mst_display_emulator_init(struct vkms_mst_display_emulator *vkms_mst_display_emulator, const char* name);
