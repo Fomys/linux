@@ -3,6 +3,7 @@
 
 #include <linux/types.h>
 #include <drm/display/drm_dp_helper.h>
+#include <drm/display/drm_dp_mst_helper.h>
 
 #define VKMS_MST_MAX_PORTS 16
 
@@ -117,7 +118,12 @@ struct vkms_mst_emulator_port {
  *               vkms_mst_emulator_transfer_read/write_default
  * @wq_req: Workqueue used when new requests are received on DOWN_REQ
  * @w_req: Work used for new request received on DOWN_REQ
+ * @work_current_src: Used by @w_req to know where the request come from
  * @transfer_helpers: helpers called when a dp-aux transfer is requested
+ * @rep_to_send_header: Header of the pending message that need to be send
+ * @rep_to_send_content_len: Len of the sideband message to be send
+ * @rep_to_send_content: Sideband message content to send
+ * @transfer_helpers: Helpers called when a transfer request occurs
  * @ports: List of the ports and connected devices
  * @name: Name of the device. Mainly used for logging purpose.
  *
@@ -136,12 +142,22 @@ struct vkms_mst_emulator {
 	//  behavior so it can work with multiple devices
 	struct workqueue_struct *wq_req;
 	struct work_struct w_req;
+	u8 work_current_src;
+
+	struct drm_dp_sideband_msg_hdr rep_to_send_header;
+	u8 rep_to_send_content_len;
+	// TODO: Est ce que ça fait encore du jardinage
+	u8 *rep_to_send_content;
 
 	const struct vkms_mst_transfer_helpers *transfer_helpers;
 
 	struct vkms_mst_emulator_port ports[VKMS_MST_MAX_PORTS];
 	const char *name;
 };
+
+void vkms_mst_call_irq(struct vkms_mst_emulator *emulator, u8 dst_port);
+void send_next_down_rep(struct vkms_mst_emulator *emulator, u8 port_id);
+ssize_t vkms_mst_transfer(struct vkms_mst_emulator *emulator, u8 destination_port, struct drm_dp_aux_msg *msg);
 
 /**
  * vkms_mst_emulator_init - Initialize an MST emulator device

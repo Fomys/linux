@@ -18,6 +18,77 @@ static void vkms_mst_emulator_init_memory(struct vkms_dpcd_memory * dpcd_memory)
 	dpcd_memory->DPCD_REV = DP_DPCD_REV_14;
 }
 
+void send_next_down_rep(struct vkms_mst_emulator *emulator, u8 port_id)
+{
+	if (emulator->rep_to_send_content && emulator->rep_to_send_content_len == 0) {
+		return;
+	}
+
+	memset(&emulator->dpcd_memory.DOWN_REP, 0, sizeof(emulator->dpcd_memory.DOWN_REP));
+	int rep_content_len = min(42 - 1, emulator->rep_to_send_content_len);
+	int rep_hdr_len = 0;
+
+	if (rep_content_len == emulator->rep_to_send_content_len)
+		emulator->rep_to_send_header.eomt = 1;
+	else
+		emulator->rep_to_send_header.eomt = 0;
+	emulator->rep_to_send_header.msg_len = rep_content_len + 1;
+
+	drm_dp_encode_sideband_msg_hdr(&emulator->rep_to_send_header,
+				       &emulator->dpcd_memory.DOWN_REP[0], &rep_hdr_len);
+	emulator->rep_to_send_header.somt = 0;
+
+	memcpy(&emulator->dpcd_memory.DOWN_REP[rep_hdr_len],
+	       emulator->rep_to_send_content, rep_content_len);
+	drm_dp_crc_sideband_chunk_req(&emulator->dpcd_memory.DOWN_REP[rep_hdr_len],
+				      rep_content_len);
+
+	emulator->rep_to_send_content_len -= rep_content_len;
+
+	memmove(emulator->rep_to_send_content,
+		&emulator->rep_to_send_content[rep_content_len],
+		emulator->rep_to_send_content_len);
+
+	emulator->dpcd_memory.DEVICE_SERVICE_IRQ_VECTOR_ESI0 |= DP_DOWN_REP_MSG_RDY;
+
+	//vkms_mst_call_irq(emulator, port_id);
+}
+
+/**
+ * rad_move_left - Rotate the relative adress to left and insert @port_id
+ */
+static void rad_move_left(struct drm_dp_sideband_msg_hdr *req_hdr, u8 port_id)
+{
+	int i;
+	for (i = 0; i < req_hdr->lcr - 1; i++) {
+		if (i % 2 == 0) {
+			req_hdr->rad[i / 2] <<= 4;
+		} else {
+			req_hdr->rad[i / 2] &= 0xF0;
+			req_hdr->rad[i / 2] |= req_hdr->rad[i / 2 + 1] >> 4;
+		}
+	}
+	if (i % 2 == 0) {
+		req_hdr->rad[i / 2] = port_id << 4;
+	} else {
+		req_hdr->rad[i / 2] &= 0xF0;
+		req_hdr->rad[i / 2] |= port_id;
+	}
+}
+
+ssize_t vkms_mst_transfer(struct vkms_mst_emulator *emulator, u8 destination_port, struct drm_dp_aux_msg *msg)
+{
+	struct vkms_mst_emulator *other = emulator->ports[destination_port].to;
+	u8 other_port_id = emulator->ports[destination_port].other_port_id;
+
+	if (!other)
+		return -ETIMEDOUT;
+	if (!other->transfer_helpers)
+		return -EPROTO;
+
+	return other->transfer_helpers->transfer(other, other_port_id, msg);
+}
+
 static void vkms_mst_emulation_down_req_worker(struct work_struct *work)
 {
 	struct vkms_mst_emulator *emulator =
@@ -26,22 +97,44 @@ static void vkms_mst_emulation_down_req_worker(struct work_struct *work)
 	struct drm_dp_sideband_msg_req_body req = { 0 };
 	struct drm_dp_sideband_msg_reply_body rep = { 0 };
 	struct drm_dp_sideband_msg_hdr req_hdr = { 0 };
-	struct drm_dp_sideband_msg_hdr rep_hdr = { 0 };
 	struct drm_dp_sideband_msg_tx raw_rep = { 0 };
 	u8 req_hdr_len = 0;
-	int rep_hdr_len = 0;
 
 	bool success = drm_dp_decode_sideband_msg_hdr(
 		NULL, &req_hdr, emulator->dpcd_memory.DOWN_REQ,
 		sizeof(emulator->dpcd_memory.DOWN_REQ), &req_hdr_len);
 	if (!success)
-		goto end;
+		return;
 
 	// TODO: DPCD sideband request can be splitted, need to support this here
 
 	if (req_hdr.broadcast) {
 		if (req_hdr.lct != 1)
 			pr_warn("Malformed header for a sideband broadcast message.");
+	}
+
+	if (!req_hdr.broadcast && req_hdr.lcr) {
+		int new_req_hdr_len = 0;
+		u8 dst = (req_hdr.rad[0] & 0xF0) >> 4;
+
+		if (emulator->ports[dst].to) {
+			rad_move_left(&req_hdr, emulator->work_current_src);
+			req_hdr.lcr--;
+
+			u8 buffer[sizeof(emulator->dpcd_memory.DOWN_REQ)];
+			memcpy(&buffer, &emulator->dpcd_memory.DOWN_REQ,
+			       sizeof(emulator->dpcd_memory.DOWN_REQ));
+			drm_dp_encode_sideband_msg_hdr(&req_hdr, buffer, &new_req_hdr_len);
+
+			struct drm_dp_aux_msg down_req;
+			down_req.address = DP_SIDEBAND_MSG_DOWN_REQ_BASE;
+			down_req.buffer = buffer;
+			down_req.size = sizeof(buffer);
+			down_req.request = DP_AUX_NATIVE_WRITE;
+
+			vkms_mst_transfer(emulator, dst, &down_req);
+		}
+		return;
 	}
 
 	drm_dp_decode_sideband_req((void *)emulator->dpcd_memory.DOWN_REQ + req_hdr_len,
@@ -57,30 +150,26 @@ static void vkms_mst_emulation_down_req_worker(struct work_struct *work)
 		pr_err("Unsupported request %s, ignoring\n", drm_dp_mst_req_type_str(req.req_type));
 		break;
 	}
-end:
+
 	drm_dp_encode_sideband_reply(&rep, &raw_rep);
 
-	memset(&emulator->dpcd_memory.DOWN_REP, 0,
-	       sizeof(emulator->dpcd_memory.DOWN_REP));
+	emulator->rep_to_send_header.broadcast = req_hdr.broadcast;
+	emulator->rep_to_send_header.somt = 1;
+	emulator->rep_to_send_header.lcr = req_hdr.lct - 1;
+	emulator->rep_to_send_header.lct = req_hdr.lct;
+	memcpy(&emulator->rep_to_send_header.rad, &req_hdr.rad,
+	       ARRAY_SIZE(req_hdr.rad));
+	emulator->rep_to_send_header.seqno = req_hdr.seqno;
+	emulator->rep_to_send_header.path_msg = req_hdr.path_msg;
+	emulator->rep_to_send_header.msg_len = raw_rep.cur_len + 1;
 
-	rep_hdr.broadcast = req_hdr.broadcast;
-	rep_hdr.eomt = 1;
-	rep_hdr.somt = 1;
-	rep_hdr.lcr = req_hdr.lcr;
-	rep_hdr.lct = req_hdr.lct;
-	memcpy(&rep_hdr.rad, &req_hdr.rad, ARRAY_SIZE(req_hdr.rad));
-	rep_hdr.seqno = req_hdr.seqno;
-	rep_hdr.path_msg = req_hdr.path_msg;
+	emulator->rep_to_send_content_len = raw_rep.cur_len;
+	emulator->rep_to_send_content =
+		kzalloc(emulator->rep_to_send_content_len, GFP_KERNEL);
+	memcpy(emulator->rep_to_send_content, &raw_rep.msg,
+	       emulator->rep_to_send_content_len);
 
-	rep_hdr.msg_len = raw_rep.cur_len + 1;
-	drm_dp_encode_sideband_msg_hdr(&rep_hdr, emulator->dpcd_memory.DOWN_REP,
-				       &rep_hdr_len);
-	memcpy(&emulator->dpcd_memory.DOWN_REP[rep_hdr_len], raw_rep.msg, raw_rep.cur_len);
-	drm_dp_crc_sideband_chunk_req(&emulator->dpcd_memory.DOWN_REP[rep_hdr_len],
-				      raw_rep.cur_len);
-
-	emulator->dpcd_memory.DEVICE_SERVICE_IRQ_VECTOR_ESI0 |= DP_DOWN_REP_MSG_RDY;
-	// emulator->irq_handler(vkms_mst_emulator, vkms_mst_emulator->irq_handler_data);
+	send_next_down_rep(emulator, emulator->work_current_src);
 }
 
 void vkms_mst_emulator_init(struct vkms_mst_emulator *emulator,
@@ -276,6 +365,7 @@ ssize_t vkms_mst_emulator_transfer_write_default(struct vkms_mst_emulator *emula
 
 			memcpy(&emulator->dpcd_memory.DOWN_REQ, buffer,
 			       msg_size);
+			emulator->work_current_src = port_id;
 
 			int ret = queue_work(emulator->wq_req, &emulator->w_req);
 			if (!ret)
@@ -326,6 +416,8 @@ ssize_t vkms_mst_emulator_transfer_write_default(struct vkms_mst_emulator *emula
 		case DP_DEVICE_SERVICE_IRQ_VECTOR_ESI0:
 			emulator->dpcd_memory.DEVICE_SERVICE_IRQ_VECTOR_ESI0 ^= *buffer &
 							   0x7F;
+			if (*buffer & DP_DOWN_REP_MSG_RDY)
+				send_next_down_rep(emulator, port_id);
 			break;
 		case DP_DEVICE_SERVICE_IRQ_VECTOR_ESI1:
 			emulator->dpcd_memory.DEVICE_SERVICE_IRQ_VECTOR_ESI1 ^= *buffer &
