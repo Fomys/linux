@@ -2,11 +2,23 @@
 
 #include "vkms_mst.h"
 
+#include "linux/gfp_types.h"
+#include "linux/workqueue.h"
 #include <drm/drm_print.h>
 #include <drm/display/drm_dp_mst_helper.h>
 #include <linux/string.h>
 
-#include <drm/display/drm_dp_mst_helper.h>
+static void vkms_mst_emulator_dump_connected(struct vkms_mst_emulator *emulator)
+{
+	pr_err("Devices connected to %s:\n", emulator->name);
+	for(int i = 0; i < VKMS_MST_MAX_PORTS; i++) {
+		if (emulator->ports[i].to) {
+			pr_err("%d - kind: %d, other_port: %d, other: %s\n", i, emulator->ports[i].kind, emulator->ports[i].other_port_id, emulator->ports[i].to->name);
+		} else {
+			pr_err("%d - kind: %d\n", i, emulator->ports[i].kind);
+		}
+	}
+}
 
 /**
  * vkms_mst_emulator_init_memory - Initialize the DPCD memory of the device
@@ -16,6 +28,41 @@ static void vkms_mst_emulator_init_memory(struct vkms_dpcd_memory * dpcd_memory)
 	memset(dpcd_memory, 0, sizeof(*dpcd_memory));
 
 	dpcd_memory->DPCD_REV = DP_DPCD_REV_14;
+}
+
+struct test {
+	struct work_struct work;
+	struct vkms_mst_emulator *emulator;
+	u8 irq_dst;
+};
+
+static void call_irq_worker(struct work_struct *work)
+{
+	struct test *test = container_of(work, struct test, work);
+	struct vkms_mst_emulator *emulator = test->emulator;
+	//struct vkms_mst_emulator *emulator = container_of(work, struct vkms_mst_emulator, w_irq);
+	u8 other_port = emulator->ports[emulator->irq_dst].other_port_id;
+	struct vkms_mst_emulator *other = emulator->ports[emulator->irq_dst].to;
+	if (other && other->helpers->irq_handler) {
+		other->helpers->irq_handler(other, other_port);
+	} else {
+		pr_err("Send an IRQ to an unconnected device?\n");
+		vkms_mst_emulator_dump_connected(emulator);
+	}
+	kfree(test);
+}
+
+void vkms_mst_call_irq(struct vkms_mst_emulator *emulator, u8 dst_port)
+{
+	emulator->irq_dst = dst_port;
+	struct test *work = kzalloc(sizeof(*work), GFP_KERNEL);
+	INIT_WORK(&work->work, call_irq_worker);
+	work->irq_dst = dst_port;
+	work->emulator = emulator;
+	int ret = queue_work(emulator->wq_irq, &work->work);
+	if (!ret) {
+		dump_stack();
+	}
 }
 
 void send_next_down_rep(struct vkms_mst_emulator *emulator, u8 port_id)
@@ -51,7 +98,7 @@ void send_next_down_rep(struct vkms_mst_emulator *emulator, u8 port_id)
 
 	emulator->dpcd_memory.DEVICE_SERVICE_IRQ_VECTOR_ESI0 |= DP_DOWN_REP_MSG_RDY;
 
-	//vkms_mst_call_irq(emulator, port_id);
+	vkms_mst_call_irq(emulator, port_id);
 }
 
 /**
@@ -200,12 +247,18 @@ void vkms_mst_emulator_init(struct vkms_mst_emulator *emulator,
 
 	emulator->wq_req = alloc_ordered_workqueue("%s-req", 0, name);
 	INIT_WORK(&emulator->w_req, vkms_mst_emulation_down_req_worker);
+	emulator->wq_irq = alloc_ordered_workqueue("%s-irq", 0, name);
 
 	for (int i = 0; i < VKMS_MST_MAX_PORTS; i++) {
 		emulator->ports[i].to = NULL;
 		emulator->ports[i].kind = port_kinds[i];
 		emulator->ports[i].other_port_id = -1;
 	}
+
+	memset(&emulator->rep_to_send_header, 0,
+	       sizeof(emulator->rep_to_send_header));
+	emulator->rep_to_send_content = NULL;
+	emulator->rep_to_send_content_len = 0;
 
 	emulator->transfer_helpers = transfer_helpers;
 	emulator->sideband_helpers = sideband_helpers;
@@ -214,7 +267,67 @@ void vkms_mst_emulator_init(struct vkms_mst_emulator *emulator,
 
 void vkms_mst_emulator_destroy(struct vkms_mst_emulator *emulator)
 {
+	for (int i = 0; i < VKMS_MST_MAX_PORTS; i++) {
+		vkms_mst_emulator_disconnect(emulator, i);
+	}
+	destroy_workqueue(emulator->wq_req);
+	destroy_workqueue(emulator->wq_irq);
+	// todo destroy vkms_mst_emulator->w_req
+	if (emulator->rep_to_send_content) {
+		kfree(emulator->rep_to_send_content);
+		emulator->rep_to_send_content = NULL;
+	}
+
 	kfree_const(emulator->name);
+}
+
+int vkms_mst_emulator_connect(
+	struct vkms_mst_emulator *emulator_1,
+	unsigned int emulator_port_1,
+	struct vkms_mst_emulator *emulator_2,
+	unsigned int emulator_port_2)
+{
+	if (emulator_port_1 >= VKMS_MST_MAX_PORTS || emulator_port_2 >= VKMS_MST_MAX_PORTS) {
+		DRM_DEBUG_DP("Attempting to connect a mst device on a port id greater than %d\n", VKMS_MST_MAX_PORTS);
+		return -EINVAL;
+	}
+
+	if (emulator_1->ports[emulator_port_1].to || emulator_2->ports[emulator_port_2].to) {
+		DRM_DEBUG_DP("Attempting to connect a mst device on an already used port\n");
+		return -EINVAL;
+	}
+
+	emulator_1->ports[emulator_port_1].to = emulator_2;
+	emulator_1->ports[emulator_port_1].other_port_id = emulator_port_2;
+
+	emulator_2->ports[emulator_port_2].to = emulator_1;
+	emulator_2->ports[emulator_port_2].other_port_id = emulator_port_1;
+
+	return 0;
+}
+
+int vkms_mst_emulator_disconnect(struct vkms_mst_emulator *emulator, u8 port)
+{
+	if (port >= VKMS_MST_MAX_PORTS) {
+		DRM_DEBUG_DP( "Attempting to disconnect a mst device on a port id greater than %d\n", VKMS_MST_MAX_PORTS);
+		return -EINVAL;
+	}
+
+	if (!emulator->ports[port].to) {
+		DRM_DEBUG_DP("Attempting to disconnect a mst device not connected\n");
+		return -EINVAL;
+	}
+
+	struct vkms_mst_emulator *other = emulator->ports[port].to;
+	u8 other_port = emulator->ports[port].other_port_id;
+
+	other->ports[other_port].to = NULL;
+	other->ports[other_port].other_port_id = -1;
+
+	emulator->ports[port].to = NULL;
+	emulator->ports[port].other_port_id = -1;
+
+	return 0;
 }
 
 static int vkms_mst_emulator_port_count(struct vkms_mst_emulator *emulator)

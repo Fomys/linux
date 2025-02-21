@@ -67,8 +67,6 @@ struct vkms_mst_sideband_helpers {
 						    struct drm_dp_sideband_msg_reply_body *rep);
 };
 
-extern struct vkms_mst_sideband_helpers vkms_mst_sideband_helpers_default;
-
 /**
  * struct vkms_mst_transfer_helpers - Helpers to emulate a memory transfer over
  * dp-aux channel.
@@ -168,6 +166,9 @@ struct vkms_mst_emulator {
 	struct workqueue_struct *wq_req;
 	struct work_struct w_req;
 	u8 work_current_src;
+
+	struct workqueue_struct *wq_irq;
+	u8 irq_dst;
 
 	struct drm_dp_sideband_msg_hdr rep_to_send_header;
 	u8 rep_to_send_content_len;
