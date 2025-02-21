@@ -223,7 +223,7 @@ static int __init vkms_init(void)
 	if (ret)
 		return ret;
 
-	if (!create_default_dev)
+	if (true || !create_default_dev)
 		return 0;
 
 	config = vkms_config_default_create(enable_cursor, enable_writeback, enable_overlay);
