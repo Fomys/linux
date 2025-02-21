@@ -10,7 +10,9 @@
 
 static ssize_t vkms_connector_mst_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 {
-	return -ETIMEDOUT;
+	struct vkms_connector *vkms_connector = drm_dp_aux_to_vkms_connector(aux);
+
+	return vkms_mst_emulator_root_transfer(&vkms_connector->vkms_mst_emulator_root, msg);
 }
 
 static const struct drm_connector_funcs vkms_mst_connector_funcs = {
@@ -247,6 +249,9 @@ struct vkms_connector *vkms_connector_init(struct vkms_device *vkmsdev,
 		connector->aux.drm_dev = dev;
 		connector->aux.name = "MST AUX";
 		connector->mst_mgr.cbs = &mst_cbs;
+
+		vkms_mst_emulator_root_init(&connector->vkms_mst_emulator_root,
+					    "root");
 
 		ret = drm_dp_mst_topology_mgr_init(
 			&connector->mst_mgr, dev, &connector->aux, 16,
