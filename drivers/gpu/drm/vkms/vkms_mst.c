@@ -184,6 +184,7 @@ static void vkms_mst_emulation_down_req_worker(struct work_struct *work)
 
 void vkms_mst_emulator_init(struct vkms_mst_emulator *emulator,
 			    const struct vkms_mst_transfer_helpers *transfer_helpers,
+			    const struct vkms_mst_sideband_helpers *sideband_helpers,
 			    const enum vkms_mst_port_kind port_kinds[VKMS_MST_MAX_PORTS],
 			    const char *name)
 {
@@ -199,6 +200,7 @@ void vkms_mst_emulator_init(struct vkms_mst_emulator *emulator,
 	}
 
 	emulator->transfer_helpers = transfer_helpers;
+	emulator->sideband_helpers = sideband_helpers;
 	emulator->name = kstrdup_const(name, GFP_KERNEL);
 }
 
