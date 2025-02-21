@@ -75,6 +75,54 @@ ssize_t vkms_mst_emulator_transfer_read_default(struct vkms_mst_emulator *emulat
 		case DP_DPCD_REV:
 			*buffer = emulator->dpcd_memory.DPCD_REV;
 			break;
+		case DP_MAX_LINK_RATE:
+			*buffer = emulator->dpcd_memory.MAX_LINK_RATE;
+			break;
+		case DP_MAX_LANE_COUNT:
+			*buffer = emulator->dpcd_memory.MAX_LANE_COUNT;
+			break;
+		case DP_MAX_DOWNSPREAD:
+			*buffer = emulator->dpcd_memory.MAX_DOWNSPREAD;
+			break;
+		case DP_NORP:
+			*buffer = emulator->dpcd_memory.NORP;
+			break;
+		case DP_DOWNSTREAMPORT_PRESENT:
+			*buffer = emulator->dpcd_memory.DOWNSTREAMPORT_PRESENT;
+			break;
+		case DP_MAIN_LINK_CHANNEL_CODING:
+			*buffer = emulator->dpcd_memory.MAIN_LINK_CHANNEL_CODING;
+			break;
+		case DP_DOWN_STREAM_PORT_COUNT:
+			*buffer = emulator->dpcd_memory.DOWNSTREAM_PORT_COUNT;
+			break;
+		case DP_RECEIVE_PORT_0_CAP_0:
+			*buffer = emulator->dpcd_memory.RECEIVE_PORT_0_CAP_0;
+			break;
+		case DP_RECEIVE_PORT_0_BUFFER_SIZE:
+			*buffer = emulator->dpcd_memory.RECEIVE_PORT_0_BUFFER_SIZE;
+			break;
+		case DP_RECEIVE_PORT_1_CAP_0:
+			*buffer = emulator->dpcd_memory.RECEIVE_PORT_1_CAP_0;
+			break;
+		case DP_RECEIVE_PORT_1_BUFFER_SIZE:
+			*buffer = emulator->dpcd_memory.RECEIVE_PORT_1_BUFFER_SIZE;
+			break;
+		case DP_I2C_SPEED_CAP:
+			*buffer = emulator->dpcd_memory.I2C_SPEED_CAP;
+			break;
+		case DP_EDP_CONFIGURATION_CAP:
+			*buffer = emulator->dpcd_memory.EDP_CONFIGURATION_CAP;
+			break;
+		case DP_TRAINING_AUX_RD_INTERVAL:
+			*buffer = emulator->dpcd_memory.TRAINING_AUX_RD_INTERVAL;
+			break;
+		case DP_MSTM_CAP:
+			*buffer = emulator->dpcd_memory.MSTM_CAP;
+			break;
+		case DP_PAYLOAD_TABLE_UPDATE_STATUS:
+			*buffer = emulator->dpcd_memory.PAYLOAD_TABLE_UPDATE_STATUS;
+			break;
 		default:
 			*buffer = 0;
 			msg->reply = DP_AUX_NATIVE_REPLY_NACK;
@@ -103,6 +151,9 @@ ssize_t vkms_mst_emulator_transfer_write_default(struct vkms_mst_emulator *emula
 		int curr_offset = msg->address + i;
 
 		switch (curr_offset) {
+		case DP_MSTM_CTRL:
+			emulator->dpcd_memory.MSTM_CTRL = *buffer;
+			break;
 		default:
 			*buffer = 0;
 			msg->reply = DP_AUX_NATIVE_REPLY_NACK;
