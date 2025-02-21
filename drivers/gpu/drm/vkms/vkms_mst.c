@@ -85,12 +85,19 @@ end:
 
 void vkms_mst_emulator_init(struct vkms_mst_emulator *emulator,
 			    const struct vkms_mst_transfer_helpers *transfer_helpers,
+			    const enum vkms_mst_port_kind port_kinds[VKMS_MST_MAX_PORTS],
 			    const char *name)
 {
 	vkms_mst_emulator_init_memory(&emulator->dpcd_memory);
 
 	emulator->wq_req = alloc_ordered_workqueue("%s-req", 0, name);
 	INIT_WORK(&emulator->w_req, vkms_mst_emulation_down_req_worker);
+
+	for (int i = 0; i < VKMS_MST_MAX_PORTS; i++) {
+		emulator->ports[i].to = NULL;
+		emulator->ports[i].kind = port_kinds[i];
+		emulator->ports[i].other_port_id = -1;
+	}
 
 	emulator->transfer_helpers = transfer_helpers;
 	emulator->name = kstrdup_const(name, GFP_KERNEL);

@@ -4,6 +4,8 @@
 #include <linux/types.h>
 #include <drm/display/drm_dp_helper.h>
 
+#define VKMS_MST_MAX_PORTS 16
+
 /**
  * struct vkms_dpcd_memory - Representation of the DPCD memory of a device
  * For exact meaning of each field, refer to the DisplayPort specification.
@@ -82,6 +84,31 @@ struct vkms_mst_transfer_helpers {
 };
 
 /**
+ * enum vkms_mst_port_kind - The different kind of ports a MST device can have
+ * @VKMS_MST_PORT_NOT_EXISTS: Default value, means that the device don't have a port
+ * @VKMS_MST_PORT_UFP: Up facing port, for example a video input for a hub
+ * @VKMS_MST_PORT_DFP: Down facing port, for example a video output for a hub
+ */
+enum vkms_mst_port_kind {
+	VKMS_MST_PORT_NOT_EXISTS,
+	VKMS_MST_PORT_UFP,
+	VKMS_MST_PORT_DFP
+};
+
+/**
+ * struct vkms_mst_emulator_port - Represents a connection between two devices
+ * @kind: Kind of connection, initialized in vkms_mst_emulator_init
+ * @to: Connected device, can be NULL.
+ * @other_port_id: Required to identify on which port of the other device the
+ *		   connection is done.
+ */
+struct vkms_mst_emulator_port {
+	enum vkms_mst_port_kind kind;
+	struct vkms_mst_emulator *to;
+	u8 other_port_id;
+};
+
+/**
  * struct vkms_mst_emulator - Base structure for all MST device emulators.
  *
  * @dpcd_memory: Representation of the internal DPCD memory. This is a private
@@ -91,7 +118,14 @@ struct vkms_mst_transfer_helpers {
  * @wq_req: Workqueue used when new requests are received on DOWN_REQ
  * @w_req: Work used for new request received on DOWN_REQ
  * @transfer_helpers: helpers called when a dp-aux transfer is requested
+ * @ports: List of the ports and connected devices
  * @name: Name of the device. Mainly used for logging purpose.
+ *
+ * With the functions vkms_mst_emulator_connect and vkms_mst_emulator_disconnect,
+ * you have the garantee that forall 0 <= i < VKMS_MST_MAX_PORTS:
+ * 	ports[i].to = other device
+ *	ports[i].to.ports[ports[i].other_port_id].to = this device
+ *	ports[i].to.ports[ports[i].other_port_id].other_port_id = i
  */
 struct vkms_mst_emulator {
 	struct vkms_dpcd_memory dpcd_memory;
@@ -105,6 +139,7 @@ struct vkms_mst_emulator {
 
 	const struct vkms_mst_transfer_helpers *transfer_helpers;
 
+	struct vkms_mst_emulator_port ports[VKMS_MST_MAX_PORTS];
 	const char *name;
 };
 
@@ -112,11 +147,35 @@ struct vkms_mst_emulator {
  * vkms_mst_emulator_init - Initialize an MST emulator device
  * @emulator: Structure to initialize
  * @transfer_helpers: Helpers used to emulate dp-aux transfers. Can be NULL.
+ * @port_kinds: List of ports to configure on this device
  * @name: Name of the device. Used mainly for logging purpose.
  */
 void vkms_mst_emulator_init(struct vkms_mst_emulator *emulator,
 			    const struct vkms_mst_transfer_helpers *transfer_helpers,
+			    const enum vkms_mst_port_kind port_kinds[VKMS_MST_MAX_PORTS],
 			    const char *name);
+
+/**
+ * vkms_mst_emulator_connect - Connect two devices.
+ * This function garantee that the field port is properly filled, i.e:
+ * 	emulator_1.ports[emulator_1_port].to = emulator_2
+ *	emulator_1.ports[emulator_1_port].other_port_id = emulator_2_port
+ *	emulator_2.ports[emulator_2_port].to = emulator_1
+ * 	emulator_2.ports[emulator_2_port].other_port_id = emulator_1_port
+ */
+int vkms_mst_emulator_connect(
+	struct vkms_mst_emulator *emulator_1,
+	unsigned int emulator_1_port,
+	struct vkms_mst_emulator *emulator_2,
+	unsigned int emulator_2_port);
+
+/**
+ * vkms_mst_emulator_disconnect - Disconnect two devices, ensuring that the
+ * other end of the connexion is properly disconnected
+ * @emulator: emulator to work on
+ * @port: id of the port to be disconnected
+ */
+int vkms_mst_emulator_disconnect(struct vkms_mst_emulator *emulator, u8 port);
 
 /**
  * vkms_mst_emulator_destroy: Destroy all resources allocated for an emulator
