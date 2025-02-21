@@ -27,9 +27,16 @@ struct vkms_dpcd_memory {
 	u8 MSTM_CAP;
 	u8 PAYLOAD_TABLE_UPDATE_STATUS;
 	u8 MSTM_CTRL;
+	u8 DOWN_REQ[0x200];
+	u8 DOWN_REP[0x200];
 	u8 PAYLOAD_ALLOCATE_SET;
 	u8 PAYLOAD_ALLOCATE_START_TIME_SLOT;
 	u8 PAYLOAD_ALLOCATE_TIME_SLOT_COUNT;
+	guid_t GUID;
+	u8 DEVICE_SERVICE_IRQ_VECTOR_ESI0;
+	u8 SINK_COUNT_ESI;
+	u8 LINK_SERVICE_IRQ_VECTOR_ESI0;
+	u8 DEVICE_SERVICE_IRQ_VECTOR_ESI1;
 };
 
 struct vkms_mst_emulator;
@@ -81,11 +88,20 @@ struct vkms_mst_transfer_helpers {
  *               field that should not be accessed outside the device itself.
  *               This memory is updated and read by the default implementation
  *               vkms_mst_emulator_transfer_read/write_default
+ * @wq_req: Workqueue used when new requests are received on DOWN_REQ
+ * @w_req: Work used for new request received on DOWN_REQ
  * @transfer_helpers: helpers called when a dp-aux transfer is requested
  * @name: Name of the device. Mainly used for logging purpose.
  */
 struct vkms_mst_emulator {
 	struct vkms_dpcd_memory dpcd_memory;
+
+	// TODO: Transform this into a real queue, we can technically have
+	//  multiple request at the same time from multiple devices.
+	//  We may also need to change the dpcd_memory.DOWN_REQ/DOWN_REP
+	//  behavior so it can work with multiple devices
+	struct workqueue_struct *wq_req;
+	struct work_struct w_req;
 
 	const struct vkms_mst_transfer_helpers *transfer_helpers;
 
