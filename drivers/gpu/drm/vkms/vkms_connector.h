@@ -25,6 +25,9 @@ struct vkms_connector {
 	struct drm_dp_aux aux;
 
 	struct vkms_mst_emulator_root vkms_mst_emulator_root;
+	struct vkms_mst_emulator **vkms_mst_emulators;
+	int mst_emulator_count;
+
 	struct drm_encoder *mst_encoders;
 
 	struct vkms_config_connector *connector_cfg;
