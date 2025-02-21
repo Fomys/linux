@@ -72,6 +72,14 @@ const struct vkms_mst_emulator_helpers vkms_mst_display_helpers = {
 	.irq_handler = vkms_mst_display_irq_hanlder
 };
 
+struct vkms_mst_display_emulator *vkms_mst_display_emulator_alloc(const char* name)
+{
+	struct vkms_mst_display_emulator *display = kzalloc(sizeof(*display), GFP_KERNEL);
+	if (display)
+		vkms_mst_display_emulator_init(display, name);
+	return display;
+}
+
 void vkms_mst_display_emulator_init(struct vkms_mst_display_emulator *emulator, const char* name)
 {
 	enum vkms_mst_port_kind port_kind[16] = {
