@@ -209,6 +209,110 @@ void vkms_mst_emulator_destroy(struct vkms_mst_emulator *emulator)
 	kfree_const(emulator->name);
 }
 
+static int vkms_mst_emulator_port_count(struct vkms_mst_emulator *emulator)
+{
+	int total = 0;
+	for (int i = 0; i < VKMS_MST_MAX_PORTS; i++) {
+		if (emulator->ports[i].kind != VKMS_MST_PORT_NOT_EXISTS)
+			total += 1;
+	}
+	return total;
+}
+
+void vkms_mst_emulator_link_address_default(struct vkms_mst_emulator *emulator, u8 port_id,
+					    struct drm_dp_sideband_msg_hdr *req_hdr,
+					    struct drm_dp_sideband_msg_req_body *req,
+					    struct drm_dp_sideband_msg_hdr *rep_hdr,
+					    struct drm_dp_sideband_msg_reply_body *rep)
+{
+	rep->req_type = DP_LINK_ADDRESS;
+	rep->reply_type = DP_SIDEBAND_REPLY_ACK;
+	guid_copy(&rep->u.link_addr.guid, &emulator->dpcd_memory.GUID);
+	rep->u.link_addr.nports = vkms_mst_emulator_port_count(emulator);
+
+	for (int i = 0; i < rep->u.link_addr.nports; i++) {
+		rep->u.link_addr.ports[i].input_port = false;
+		rep->u.link_addr.ports[i].port_number = i;
+
+		if (emulator->ports[i].to) {
+			u8 buf[16];
+			struct drm_dp_aux_msg msg;
+
+			msg.request = DP_AUX_NATIVE_READ;
+			msg.address = DP_MSTM_CAP;
+			msg.buffer = buf;
+			msg.size = 1;
+			vkms_mst_transfer(emulator, i, &msg);
+			// TODO: Why this is not used?
+
+			msg.address = DP_DPCD_REV;
+			msg.size = 1;
+			vkms_mst_transfer(emulator, i, &msg);
+			rep->u.link_addr.ports[i].dpcd_revision = buf[0];
+
+			msg.address = DP_GUID;
+			msg.size = 16;
+			vkms_mst_transfer(emulator, i, &msg);
+			memcpy(&rep->u.link_addr.ports[i].peer_guid, msg.buffer, 16);
+
+			// TODO: Need to request DFP those informations
+			rep->u.link_addr.ports[i].num_sdp_streams = 0;
+			rep->u.link_addr.ports[i].num_sdp_stream_sinks = 0;
+			rep->u.link_addr.ports[i].legacy_device_plug_status = 1;
+
+			rep->u.link_addr.ports[i].ddps = 1;
+			if (emulator->ports[i].kind == VKMS_MST_PORT_UFP) {
+				rep->u.link_addr.ports[i].input_port = true;
+				rep->u.link_addr.ports[i].peer_device_type =
+					DP_PEER_DEVICE_SOURCE_OR_SST;
+				rep->u.link_addr.ports[i].port_number = 0;
+				rep->u.link_addr.ports[i].mcs = 1;
+			} else if (emulator->ports[i].kind == VKMS_MST_PORT_DFP) {
+				u8 dfp_present = 0;
+				u8 mstm_cap = 0;
+
+				msg.address = DP_DOWNSTREAMPORT_PRESENT;
+				msg.size = 1;
+				vkms_mst_transfer(emulator, i, &msg);
+				dfp_present = ((u8 *)msg.buffer)[0];
+
+
+				msg.address = DP_MSTM_CAP;
+				msg.size = 1;
+				vkms_mst_transfer(emulator, i, &msg);
+				mstm_cap = ((u8 *)msg.buffer)[0];
+
+				if (dfp_present & DP_DWN_STRM_PORT_PRESENT) {
+					switch (dfp_present & DP_DWN_STRM_PORT_TYPE_MASK) {
+					case DP_DWN_STRM_PORT_TYPE_DP:
+						if (mstm_cap & DP_MST_CAP) {
+							rep->u.link_addr.ports[i].mcs = 1;
+						} else {
+							rep->u.link_addr.ports[i].mcs = 0;
+						}
+						rep->u.link_addr.ports[i].peer_device_type = DP_PEER_DEVICE_MST_BRANCHING;
+						break;
+					case DP_DWN_STRM_PORT_TYPE_ANALOG:
+					case DP_DWN_STRM_PORT_TYPE_TMDS:
+						rep->u.link_addr.ports[i].mcs = 0;
+						rep->u.link_addr.ports[i].peer_device_type = DP_PEER_DEVICE_DP_LEGACY_CONV;
+						break;
+					case DP_DWN_STRM_PORT_TYPE_OTHER:
+						rep->u.link_addr.ports[i].mcs = 1;
+						rep->u.link_addr.ports[i].peer_device_type = DP_PEER_DEVICE_DP_WIRELESS_CONV;
+						break;
+					default:
+						BUG();
+					}
+				} else if ((mstm_cap & DP_MST_CAP) == 0) {
+					rep->u.link_addr.ports[i].mcs = 0;
+					rep->u.link_addr.ports[i].peer_device_type = DP_PEER_DEVICE_SST_SINK;
+				}
+			}
+		}
+	}
+}
+
 ssize_t vkms_mst_emulator_transfer_default(struct vkms_mst_emulator *emulator, u8 port_id, struct drm_dp_aux_msg *msg)
 {
 	if (emulator->transfer_helpers) {
