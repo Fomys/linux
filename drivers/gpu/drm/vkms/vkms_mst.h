@@ -108,6 +108,16 @@ struct vkms_mst_transfer_helpers {
 };
 
 /**
+ * struct vkms_mst_emulator_helpers - Helper to manage the emulator itself
+ *
+ * @destroy: Destroy function that must free all the memory allocated by the helper. It must call vkms_mst_emulator_destroy.
+ */
+struct vkms_mst_emulator_helpers {
+	void (*destroy)(struct vkms_mst_emulator *emulator);
+	void (*irq_handler)(struct vkms_mst_emulator *emulator, u8 port_id);
+};
+
+/**
  * enum vkms_mst_port_kind - The different kind of ports a MST device can have
  * @VKMS_MST_PORT_NOT_EXISTS: Default value, means that the device don't have a port
  * @VKMS_MST_PORT_UFP: Up facing port, for example a video input for a hub
@@ -177,6 +187,7 @@ struct vkms_mst_emulator {
 
 	const struct vkms_mst_transfer_helpers *transfer_helpers;
 	const struct vkms_mst_sideband_helpers *sideband_helpers;
+	const struct vkms_mst_emulator_helpers *helpers;
 
 	struct vkms_mst_emulator_port ports[VKMS_MST_MAX_PORTS];
 	const char *name;
@@ -197,6 +208,7 @@ ssize_t vkms_mst_transfer(struct vkms_mst_emulator *emulator, u8 destination_por
 void vkms_mst_emulator_init(struct vkms_mst_emulator *emulator,
 			    const struct vkms_mst_transfer_helpers *transfer_helpers,
 			    const struct vkms_mst_sideband_helpers *sideband_helpers,
+			    const struct vkms_mst_emulator_helpers *helpers,
 			    const enum vkms_mst_port_kind port_kinds[VKMS_MST_MAX_PORTS],
 			    const char *name);
 
