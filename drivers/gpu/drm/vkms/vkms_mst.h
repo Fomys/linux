@@ -275,4 +275,10 @@ ssize_t vkms_mst_emulator_transfer_i2c_write_default(struct vkms_mst_emulator *e
  */
 ssize_t vkms_mst_emulator_transfer_i2c_read_default(struct vkms_mst_emulator *emulator, u8 port_id, struct drm_dp_aux_msg *msg);
 
+void vkms_mst_emulator_link_address_default(struct vkms_mst_emulator *emulator, u8 port_id,
+				   struct drm_dp_sideband_msg_hdr *req_hdr,
+				   struct drm_dp_sideband_msg_req_body *req,
+				   struct drm_dp_sideband_msg_hdr *rep_hdr,
+				   struct drm_dp_sideband_msg_reply_body *rep);
+
 #endif
