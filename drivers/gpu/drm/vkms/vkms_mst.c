@@ -138,6 +138,17 @@ ssize_t vkms_mst_emulator_transfer_read_default(struct vkms_mst_emulator *emulat
 	return i;
 }
 
+static void
+vkms_mst_emulator_clear_vc_payload_id_table_if_needed(struct vkms_mst_emulator *emulator)
+{
+	if (emulator->dpcd_memory.PAYLOAD_ALLOCATE_SET == 0x00 &&
+	    emulator->dpcd_memory.PAYLOAD_ALLOCATE_START_TIME_SLOT == 0x00 &&
+	    emulator->dpcd_memory.PAYLOAD_ALLOCATE_TIME_SLOT_COUNT == 0x00) {
+		emulator->dpcd_memory.PAYLOAD_TABLE_UPDATE_STATUS |= DP_PAYLOAD_TABLE_UPDATED;
+		pr_err("TODO: Clear payload id table for mst device %s\n", emulator->name);
+	    }
+}
+
 ssize_t vkms_mst_emulator_transfer_write_default(struct vkms_mst_emulator *emulator, u8 port_id, struct drm_dp_aux_msg *msg)
 {
 	if (msg->request != DP_AUX_NATIVE_WRITE) {
@@ -154,6 +165,26 @@ ssize_t vkms_mst_emulator_transfer_write_default(struct vkms_mst_emulator *emula
 		switch (curr_offset) {
 		case DP_MSTM_CTRL:
 			emulator->dpcd_memory.MSTM_CTRL = *buffer;
+			break;
+		case DP_PAYLOAD_TABLE_UPDATE_STATUS:
+			if (*buffer & DP_PAYLOAD_TABLE_UPDATED)
+				emulator->dpcd_memory.PAYLOAD_TABLE_UPDATE_STATUS &=
+					~DP_PAYLOAD_TABLE_UPDATED;
+			if (*buffer & DP_PAYLOAD_ACT_HANDLED)
+				emulator->dpcd_memory.PAYLOAD_TABLE_UPDATE_STATUS &=
+					~DP_PAYLOAD_ACT_HANDLED;
+			break;
+		case DP_PAYLOAD_ALLOCATE_SET:
+			emulator->dpcd_memory.PAYLOAD_ALLOCATE_SET = *buffer;
+			vkms_mst_emulator_clear_vc_payload_id_table_if_needed(emulator);
+			break;
+		case DP_PAYLOAD_ALLOCATE_START_TIME_SLOT:
+			emulator->dpcd_memory.PAYLOAD_ALLOCATE_START_TIME_SLOT = *buffer;
+			vkms_mst_emulator_clear_vc_payload_id_table_if_needed(emulator);
+			break;
+		case DP_PAYLOAD_ALLOCATE_TIME_SLOT_COUNT:
+			emulator->dpcd_memory.PAYLOAD_ALLOCATE_TIME_SLOT_COUNT = *buffer;
+			vkms_mst_emulator_clear_vc_payload_id_table_if_needed(emulator);
 			break;
 		default:
 			*buffer = 0;
