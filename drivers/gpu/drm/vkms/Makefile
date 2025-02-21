@@ -11,7 +11,10 @@ vkms-y := \
 	vkms_connector.o \
 	vkms_config.o \
 	vkms_configfs.o \
-	vkms_mst.o
+	vkms_mst.o \
+	vkms_mst_root.o \
+	vkms_mst_display.o \
+	vkms_mst_hub.o
 
 obj-$(CONFIG_DRM_VKMS) += vkms.o
 obj-$(CONFIG_DRM_VKMS_KUNIT_TEST) += tests/
