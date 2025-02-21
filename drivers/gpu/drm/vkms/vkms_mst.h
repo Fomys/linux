@@ -179,11 +179,13 @@ ssize_t vkms_mst_transfer(struct vkms_mst_emulator *emulator, u8 destination_por
  * vkms_mst_emulator_init - Initialize an MST emulator device
  * @emulator: Structure to initialize
  * @transfer_helpers: Helpers used to emulate dp-aux transfers. Can be NULL.
+ * @sideband_helpers: Helpers used to emulate sideband transfers. Can be NULL.
  * @port_kinds: List of ports to configure on this device
  * @name: Name of the device. Used mainly for logging purpose.
  */
 void vkms_mst_emulator_init(struct vkms_mst_emulator *emulator,
 			    const struct vkms_mst_transfer_helpers *transfer_helpers,
+			    const struct vkms_mst_sideband_helpers *sideband_helpers,
 			    const enum vkms_mst_port_kind port_kinds[VKMS_MST_MAX_PORTS],
 			    const char *name);
 
