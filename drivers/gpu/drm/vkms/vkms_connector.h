@@ -4,6 +4,8 @@
 #define _VKMS_CONNECTOR_H_
 
 #include "vkms_drv.h"
+#include "vkms_mst_root.h"
+
 #include <drm/display/drm_dp_mst_helper.h>
 
 struct vkms_config_connector;
@@ -21,7 +23,8 @@ struct vkms_connector {
 	struct drm_connector base;
 	struct drm_dp_mst_topology_mgr mst_mgr;
 	struct drm_dp_aux aux;
-	
+
+	struct vkms_mst_emulator_root vkms_mst_emulator_root;
 	struct drm_encoder *mst_encoders;
 
 	struct vkms_config_connector *connector_cfg;
@@ -50,5 +53,8 @@ struct vkms_connector *vkms_connector_init(struct vkms_device *vkmsdev,
  * @vkmsdev: VKMS device to update
  */
 void vkms_trigger_connector_hotplug(struct vkms_device *vkmsdev);
+
+#define drm_dp_aux_to_vkms_connector(dp_aux) \
+	container_of(dp_aux, struct vkms_connector, aux)
 
 #endif /* _VKMS_CONNECTOR_H_ */
