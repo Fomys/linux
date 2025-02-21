@@ -7,6 +7,8 @@
 
 #include "vkms_config.h"
 #include "vkms_connector.h"
+#include "vkms_mst_display.h"
+#include "vkms_mst_hub.h"
 
 static ssize_t vkms_connector_mst_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 {
@@ -262,8 +264,20 @@ struct vkms_connector *vkms_connector_init(struct vkms_device *vkmsdev,
 		connector->aux.name = "MST AUX";
 		connector->mst_mgr.cbs = &mst_cbs;
 
-		vkms_mst_emulator_root_init(&connector->vkms_mst_emulator_root,
-					    "root");
+		vkms_mst_emulator_root_init(&connector->vkms_mst_emulator_root, "root");
+		struct vkms_mst_display_emulator *display1 = vkms_mst_display_emulator_alloc("display1");
+		vkms_connector_add_mst_emulator(connector, &display1->base);
+		struct vkms_mst_display_emulator *display2 = vkms_mst_display_emulator_alloc("display1");
+		vkms_connector_add_mst_emulator(connector, &display2->base);
+		struct vkms_mst_hub_emulator *hub1 = vkms_mst_hub_emulator_alloc(4, "hub1");
+		vkms_connector_add_mst_emulator(connector, &hub1->base);
+		struct vkms_mst_hub_emulator *hub2 = vkms_mst_hub_emulator_alloc(2, "hub2");
+		vkms_connector_add_mst_emulator(connector, &hub2->base);
+
+		vkms_mst_emulator_connect(&connector->vkms_mst_emulator_root.base, 0, &hub1->base, 0);
+		vkms_mst_emulator_connect(&hub1->base, 1, &display1->base, 0);
+		vkms_mst_emulator_connect(&hub1->base, 2, &hub2->base, 0);
+		vkms_mst_emulator_connect(&hub2->base, 1, &display2->base, 0);
 
 		ret = drm_dp_mst_topology_mgr_init(
 			&connector->mst_mgr, dev, &connector->aux, 16,
