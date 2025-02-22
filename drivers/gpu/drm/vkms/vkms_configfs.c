@@ -1152,17 +1152,52 @@ static ssize_t connector_mst_support_store(struct config_item *item,
 
 	return count;
 }
+static ssize_t connector_mst_encoder_count_show(struct config_item *item, char *page)
+{
+	struct vkms_configfs_connector *connector;
+	unsigned int encoder_count;
+	connector = connector_item_to_vkms_configfs_connector(item);
+
+	mutex_lock(&connector->dev->lock);
+	encoder_count = connector->config->encoder_count;
+	mutex_unlock(&connector->dev->lock);
+
+	return sprintf(page, "%u", encoder_count);
+}
+
+static ssize_t connector_mst_encoder_count_store(struct config_item *item,
+				      const char *page, size_t count)
+{
+	struct vkms_configfs_connector *connector;
+	unsigned int encoder_count;
+	connector = connector_item_to_vkms_configfs_connector(item);
+	int ret;
+
+	ret = kstrtouint(page, 10, &encoder_count);
+	if (ret)
+		return ret;
+
+	scoped_guard(mutex, &connector->dev->lock) {
+		if (connector->dev->enabled)
+			return -EINVAL;
+		connector->config->encoder_count = encoder_count;
+	}
+
+	return count;
+}
 
 CONFIGFS_ATTR(connector_, status);
 CONFIGFS_ATTR(connector_, edid);
 CONFIGFS_ATTR(connector_, type);
 CONFIGFS_ATTR(connector_, mst_support);
+CONFIGFS_ATTR(connector_, mst_encoder_count);
 
 static struct configfs_attribute *connector_item_attrs[] = {
 	&connector_attr_status,
 	&connector_attr_edid,
 	&connector_attr_type,
 	&connector_attr_mst_support,
+	&connector_attr_mst_encoder_count,
 	NULL,
 };
 
