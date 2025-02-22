@@ -122,6 +122,8 @@ struct vkms_config_encoder {
  * @type: Store the type of connector using DRM_MODE_CONNECTOR_* values
  * @config: The vkms_config this connector belongs to
  * @status: Status (connected, disconnected...) of the connector
+ * @edid: Stores the current EDID
+ * @edid_len: Current EDID length
  * @possible_encoders: Array of encoders that can be used with this connector
  * @connector: Internal usage. This pointer should never be considered as valid.
  *             It can be used to store a temporary reference to a VKMS connector
@@ -134,6 +136,8 @@ struct vkms_config_connector {
 
 	int type;
 	enum drm_connector_status status;
+	u8 *edid;
+	unsigned int edid_len;
 	struct xarray possible_encoders;
 
 	/* Internal usage */
@@ -231,6 +235,32 @@ struct vkms_config *vkms_config_default_create(bool enable_cursor,
  * @config: vkms_config to free
  */
 void vkms_config_destroy(struct vkms_config *config);
+
+static inline const u8 *
+vkms_config_connector_get_edid(const struct vkms_config_connector *connector_cfg, int *len)
+{
+	*len = connector_cfg->edid_len;
+	return connector_cfg->edid;
+}
+
+static inline void
+vkms_config_connector_set_edid(struct vkms_config_connector *connector_cfg, const u8 *edid, unsigned int len)
+{
+	if (len) {
+		connector_cfg->edid = krealloc(connector_cfg->edid, len, GFP_KERNEL);
+		if (connector_cfg->edid) {
+			memcpy(connector_cfg->edid, edid, len);
+			connector_cfg->edid_len = len;
+		} else {
+			kfree(connector_cfg->edid);
+			connector_cfg->edid_len = 0;
+		}
+	} else if (connector_cfg->edid) {
+		kfree(connector_cfg->edid);
+		connector_cfg->edid = NULL;
+		connector_cfg->edid_len = len;
+	}
+}
 
 /**
  * vkms_config_get_device_name() - Return the name of the device
