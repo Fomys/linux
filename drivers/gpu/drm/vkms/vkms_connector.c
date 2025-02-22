@@ -8,6 +8,89 @@
 #include "vkms_config.h"
 #include "vkms_connector.h"
 
+static ssize_t vkms_connector_mst_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
+{
+	return -ETIMEDOUT;
+}
+
+static const struct drm_connector_funcs vkms_mst_connector_funcs = {
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.destroy = drm_connector_cleanup
+};
+
+static int
+vkms_mst_detect_ctx(struct drm_connector *connector,
+		    struct drm_modeset_acquire_ctx *ctx, bool force)
+{
+	struct vkms_mst_connector *vkms_mst_connector =
+		container_of(connector, struct vkms_mst_connector, base);
+
+	if (drm_connector_is_unregistered(connector))
+		return connector_status_disconnected;
+	int connection_status = drm_dp_mst_detect_port(connector, ctx,
+						       vkms_mst_connector->mst_output_port->mgr,
+						       vkms_mst_connector->mst_output_port);
+
+	return connection_status;
+}
+
+static const struct drm_connector_helper_funcs vkms_mst_connector_helper_funcs = {
+	.get_modes = drm_connector_helper_get_modes,
+	.detect_ctx = vkms_mst_detect_ctx,
+};
+
+static struct drm_connector *vkms_mst_add_connector(struct drm_dp_mst_topology_mgr *mgr,
+					   struct drm_dp_mst_port *port, const char *path)
+{
+	struct vkms_connector *vkms_master_connector =
+		container_of(mgr, struct vkms_connector, mst_mgr);
+	struct drm_device *dev = vkms_master_connector->base.dev;
+	struct vkms_device *vkms_device = drm_device_to_vkms_device(dev);
+	struct vkms_mst_connector *vkms_mst_connector;
+	struct drm_connector *connector;
+
+	vkms_mst_connector = drmm_kzalloc(&vkms_device->drm, sizeof(*vkms_mst_connector), GFP_KERNEL);
+	if (!vkms_mst_connector)
+		return ERR_PTR(-ENOMEM);
+
+	drm_dp_mst_get_port_malloc(port);
+	vkms_mst_connector->mst_output_port = port;
+	vkms_mst_connector->master_connector = vkms_master_connector;
+
+	connector = &vkms_mst_connector->base;
+	if (drm_connector_dynamic_init(dev, connector, &vkms_mst_connector_funcs,
+				       DRM_MODE_CONNECTOR_DisplayPort, NULL)) {
+		drmm_kfree(dev, vkms_mst_connector);
+		drm_dp_mst_put_port_malloc(vkms_mst_connector->mst_output_port);
+		return NULL;
+	}
+	drm_connector_helper_add(connector, &vkms_mst_connector_helper_funcs);
+	drm_object_attach_property(
+			&connector->base,
+			dev->mode_config.path_property,
+			0);
+	drm_connector_set_path_property(connector, path);
+
+	connector->funcs->reset(connector);
+
+	struct vkms_config_encoder *cfg_encoder = NULL;
+	unsigned long idx;
+
+	vkms_config_connector_for_each_possible_encoder(vkms_master_connector->connector_cfg, idx, cfg_encoder)
+		drm_connector_attach_encoder(connector, cfg_encoder->encoder);
+
+
+
+	return connector;
+}
+
+static const struct drm_dp_mst_topology_cbs mst_cbs = {
+	.add_connector = vkms_mst_add_connector,
+};
+
 static enum drm_connector_status vkms_connector_detect(struct drm_connector *connector,
 						       bool force)
 {
@@ -100,6 +183,21 @@ struct vkms_connector *vkms_connector_init(struct vkms_device *vkmsdev,
 		return ERR_PTR(ret);
 
 	drm_connector_helper_add(&connector->base, &vkms_conn_helper_funcs);
+
+	if (vkms_config_connector_get_type(connector_cfg) == DRM_MODE_CONNECTOR_DisplayPort && connector_cfg->mst_support) {
+		connector->aux.transfer = vkms_connector_mst_transfer;
+		connector->aux.drm_dev = dev;
+		connector->aux.name = "MST AUX";
+		connector->mst_mgr.cbs = &mst_cbs;
+
+		ret = drm_dp_mst_topology_mgr_init(
+			&connector->mst_mgr, dev, &connector->aux, 16,
+			3, // TODO: count them from the configured encoders
+			connector->base.base.id);
+
+		drm_dp_aux_register(&connector->aux);
+		drm_dp_mst_topology_mgr_set_mst(&connector->mst_mgr, true);
+	}
 
 	return connector;
 }
