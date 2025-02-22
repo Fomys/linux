@@ -131,6 +131,7 @@ struct vkms_config_connector {
 	struct list_head link;
 	struct vkms_config *config;
 
+	int type;
 	enum drm_connector_status status;
 	struct xarray possible_encoders;
 
@@ -305,6 +306,28 @@ vkms_config_plane_set_type(struct vkms_config_plane *plane_cfg,
 			   enum drm_plane_type type)
 {
 	plane_cfg->type = type;
+}
+
+/**
+ * vkms_config_connector_get_type() - Return the connector type
+ * @connector_cfg: Connector to get the type from
+ */
+static inline int
+vkms_config_connector_get_type(struct vkms_config_connector *connector_cfg)
+{
+	return connector_cfg->type;
+}
+
+/**
+ * vkms_config_connector_set_type() - Set the connector type
+ * @connector_cfg: Connector to set the type to
+ * @type: New connector type
+ */
+static inline void
+vkms_config_connector_set_type(struct vkms_config_connector *connector_cfg,
+			   int type)
+{
+	connector_cfg->type = type;
 }
 
 static inline unsigned int
