@@ -4,6 +4,7 @@
 #define _VKMS_CONNECTOR_H_
 
 #include "vkms_drv.h"
+#include <drm/display/drm_dp_mst_helper.h>
 
 struct vkms_config_connector;
 
@@ -18,9 +19,18 @@ struct vkms_config_connector;
  */
 struct vkms_connector {
 	struct drm_connector base;
+	struct drm_dp_mst_topology_mgr mst_mgr;
+	struct drm_dp_aux aux;
 
 	struct vkms_config_connector *connector_cfg;
 };
+
+struct vkms_mst_connector {
+	struct drm_connector base;
+	struct vkms_connector *master_connector;
+	struct drm_dp_mst_port *mst_output_port;
+};
+
 
 /**
  * vkms_connector_init() - Initialize a connector
