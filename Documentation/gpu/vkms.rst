@@ -108,10 +108,24 @@ Last but not least, create one or more connectors::
 
   sudo mkdir /config/vkms/my-vkms/connectors/connector0
 
-Connectors have 1 configurable attribute:
+Connectors have 3 configurable attribute:
 
 - status: Connection status: 1 connected, 2 disconnected, 3 unknown (same values
   as those exposed by the "status" property of a connector)
+- dynamic: Unlike planes, CRTCs and encoders, connectors can be add and removed
+  once the device is created. This attribute allows to configure if a connector
+  will be registered using dynamic or static process. It can only be changed when
+  the device is disabled. When the connector is created while the device is disabled,
+  the default is static (0). If the connector is created while the device is enabled,
+  the default is dynamic (1).
+- enabled: As some connectors can be dynamic, this attribute allows to configure
+  the connector before registering it in drm. If the connector is created when the
+  device is disabled, the connector is enabled by default (i.e will be created with
+  the device). If the connector is created when the device is enabled, the connector
+  is disabled by default (i.e need a manual action to create the connector in DRM).
+  This allows configuring it. Once it is enabled, it is added to the device. In the
+  same manner, it can be removed from the device by setting this attribute to
+  false.
 
 To finish the configuration, link the different pipeline items::
 
@@ -122,6 +136,10 @@ To finish the configuration, link the different pipeline items::
 Since at least one primary plane is required, make sure to set the right type::
 
   echo "1" | sudo tee /config/vkms/my-vkms/planes/plane0/type
+
+And also enabled the connector::
+
+  echo "1" | sudo tee /config/vkms/my-vkms/connectors/connector0/enabled
 
 Once you are done configuring the VKMS instance, enable it::
 
