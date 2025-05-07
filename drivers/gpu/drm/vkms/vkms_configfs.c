@@ -596,6 +596,9 @@ static int connector_possible_encoders_allow_link(struct config_item *src,
 	connector = connector_possible_encoders_item_to_vkms_configfs_connector(src);
 	encoder = encoder_item_to_vkms_configfs_encoder(target);
 
+	if (encoder->dev != connector->dev)
+		return -EINVAL;
+
 	scoped_guard(mutex, &connector->dev->lock) {
 		if (connector->dev->enabled)
 			return -EBUSY;
