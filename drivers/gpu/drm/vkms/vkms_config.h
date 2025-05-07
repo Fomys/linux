@@ -177,6 +177,24 @@ struct vkms_config_connector {
 	list_for_each_entry((connector_cfg), &(config)->connectors, link)
 
 /**
+ * vkms_config_for_each_connector_static - Iterate over the static vkms_config connectors
+ * @config: &struct vkms_config pointer
+ * @connector_cfg: &struct vkms_config_connector pointer used as cursor
+ */
+#define vkms_config_for_each_connector_static(config, connector_cfg) \
+	list_for_each_entry((connector_cfg), &(config)->connectors, link) \
+		if (!connector_cfg->dynamic)
+
+/**
+ * vkms_config_for_each_connector_dynamic - Iterate over the dynamic vkms_config connectors
+ * @config: &struct vkms_config pointer
+ * @connector_cfg: &struct vkms_config_connector pointer used as cursor
+ */
+#define vkms_config_for_each_connector_dynamic(config, connector_cfg) \
+	list_for_each_entry((connector_cfg), &(config)->connectors, link) \
+		if (connector_cfg->dynamic)
+
+/**
  * vkms_config_plane_for_each_possible_crtc - Iterate over the vkms_config_plane
  * possible CRTCs
  * @plane_cfg: &struct vkms_config_plane pointer
