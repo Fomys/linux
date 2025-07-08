@@ -600,8 +600,8 @@ static ssize_t plane_supported_formats_show(struct config_item *item, char *page
 		for (int i = 0; i < vkms_config_plane_get_supported_formats_count(plane->config); i++) {
 			char tmp[6] = { 0 };
 			const ssize_t ret = snprintf(tmp, ARRAY_SIZE(tmp), "%.*s\n",
-					       (int)sizeof(formats),
-					       (char *)&formats);
+					       (int)sizeof(*formats),
+					       (char *)&formats[i]);
 			if (ret < 0)
 				return ret;
 			/* Limitation of ConfigFS attributes, an attribute can't be bigger than PAGE_SIZE */
