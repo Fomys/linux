@@ -1061,6 +1061,49 @@ static ssize_t connector_type_store(struct config_item *item,
 	return count;
 }
 
+static ssize_t connector_supported_colorspace_show(struct config_item *item, char *page)
+{
+	struct vkms_configfs_connector *connector;
+	int type;
+
+	connector = connector_item_to_vkms_configfs_connector(item);
+
+	scoped_guard(mutex, &connector->dev->lock) {
+		type = vkms_config_connector_get_supported_colorspace(connector->config);
+	}
+
+	return sprintf(page, "%u", type);
+}
+
+static ssize_t connector_supported_colorspace_store(struct config_item *item,
+				    const char *page, size_t count)
+{
+	struct vkms_configfs_connector *connector;
+	int val;
+
+	connector = connector_item_to_vkms_configfs_connector(item);
+
+	int ret = kstrtouint(page, 10, &val);
+	if (ret)
+		return ret;
+
+	if ((val & -BIT(DRM_MODE_COLORIMETRY_COUNT)) != 0) {
+		return -EINVAL;
+	}
+
+	scoped_guard(mutex, &connector->dev->lock) {
+		if (connector->dev->enabled) {
+			if (connector->config->dynamic && connector->config->enabled)
+				return -EBUSY;
+			if (!connector->config->dynamic)
+				return -EBUSY;
+		}
+		vkms_config_connector_set_supported_colorspace(connector->config, val);
+	}
+
+	return count;
+}
+
 static ssize_t connector_dynamic_show(struct config_item *item, char *page)
 {
 	struct vkms_configfs_connector *connector;
@@ -1166,6 +1209,7 @@ CONFIGFS_ATTR(connector_, edid);
 CONFIGFS_ATTR(connector_, type);
 CONFIGFS_ATTR(connector_, dynamic);
 CONFIGFS_ATTR(connector_, enabled);
+CONFIGFS_ATTR(connector_, supported_colorspace);
 
 static struct configfs_attribute *connector_item_attrs[] = {
 	&connector_attr_status,
@@ -1173,6 +1217,7 @@ static struct configfs_attribute *connector_item_attrs[] = {
 	&connector_attr_type,
 	&connector_attr_dynamic,
 	&connector_attr_enabled,
+	&connector_attr_supported_colorspace,
 	NULL
 };
 

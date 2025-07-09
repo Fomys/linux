@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
+#include "drm/drm_mode.h"
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_managed.h>
@@ -113,6 +114,19 @@ struct vkms_connector *vkms_connector_init(struct vkms_device *vkmsdev, struct v
 				  connector_cfg->type, NULL);
 	if (ret)
 		return ERR_PTR(ret);
+
+
+	if (connector_cfg->supported_colorspace) {
+		if (connector_cfg->type == DRM_MODE_CONNECTOR_HDMIA) {
+			drm_mode_create_hdmi_colorspace_property(&connector->base, connector_cfg->supported_colorspace);
+			drm_connector_attach_hdr_output_metadata_property(&connector->base);
+			drm_connector_attach_colorspace_property(&connector->base);
+		} else if (connector_cfg->type == DRM_MODE_CONNECTOR_DisplayPort || connector_cfg->type == DRM_MODE_CONNECTOR_eDP) {
+			drm_mode_create_dp_colorspace_property(&connector->base, connector_cfg->supported_colorspace);
+			drm_connector_attach_hdr_output_metadata_property(&connector->base);
+			drm_connector_attach_colorspace_property(&connector->base);
+		}
+	}
 
 	drm_connector_helper_add(&connector->base, &vkms_conn_helper_funcs);
 
