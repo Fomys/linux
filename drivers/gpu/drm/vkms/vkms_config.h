@@ -143,6 +143,7 @@ struct vkms_config_connector {
 	u8 *edid;
 	unsigned int edid_len;
 	struct xarray possible_encoders;
+	u32 supported_colorspace;
 
 	/* Internal usage */
 	struct vkms_connector *connector;
@@ -381,6 +382,18 @@ vkms_config_connector_set_type(struct vkms_config_connector *connector_cfg,
 			   int type)
 {
 	connector_cfg->type = type;
+}
+
+static inline void
+vkms_config_connector_set_supported_colorspace(struct vkms_config_connector *connector_cfg, u32 supported_colorspace)
+{
+	connector_cfg->supported_colorspace = supported_colorspace;
+}
+
+static inline u32
+vkms_config_connector_get_supported_colorspace(struct vkms_config_connector *connector_cfg)
+{
+	return connector_cfg->supported_colorspace;
 }
 
 /**
