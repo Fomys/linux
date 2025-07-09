@@ -67,20 +67,25 @@ static int vkms_conn_get_modes(struct drm_connector *connector)
 		if (connector_cfg->connector == vkms_connector)
 			context = connector_cfg;
 	}
-	if (context)
-		drm_edid = drm_edid_read_custom(connector, vkms_connector_read_block, context);
+	if (context) {
+		if (context->edid_enabled) {
+			drm_edid = drm_edid_read_custom(connector, vkms_connector_read_block, context);
+			/*
+			 * Unconditionally update the connector. If the EDID was read
+			 * successfully, fill in the connector information derived from the
+			 * EDID. Otherwise, if the EDID is NULL, clear the connector
+			 * information.
+			 */
+			drm_edid_connector_update(connector, drm_edid);
 
-	/*
-	 * Unconditionally update the connector. If the EDID was read
-	 * successfully, fill in the connector information derived from the
-	 * EDID. Otherwise, if the EDID is NULL, clear the connector
-	 * information.
-	 */
-	drm_edid_connector_update(connector, drm_edid);
+			count = drm_edid_connector_add_modes(connector);
 
-	count = drm_edid_connector_add_modes(connector);
-
-	drm_edid_free(drm_edid);
+			drm_edid_free(drm_edid);
+		} else {
+			count = drm_add_modes_noedid(connector, XRES_MAX, YRES_MAX);
+			drm_set_preferred_mode(connector, XRES_DEF, YRES_DEF);
+		}
+	}
 
 	return count;
 }
