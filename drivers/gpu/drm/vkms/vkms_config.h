@@ -140,6 +140,7 @@ struct vkms_config_connector {
 	bool enabled;
 	bool dynamic;
 	enum drm_connector_status status;
+	bool edid_enabled;
 	u8 *edid;
 	unsigned int edid_len;
 	struct xarray possible_encoders;
@@ -283,6 +284,18 @@ vkms_config_connector_set_edid(struct vkms_config_connector *connector_cfg, cons
 		connector_cfg->edid = NULL;
 		connector_cfg->edid_len = len;
 	}
+}
+
+static inline bool
+vkms_config_connector_get_edid_enabled(struct vkms_config_connector *connector_cfg)
+{
+	return connector_cfg->edid_enabled;
+}
+
+static inline void
+vkms_config_connector_set_edid_enabled(struct vkms_config_connector *connector_cfg, bool enabled)
+{
+	connector_cfg->edid_enabled = enabled;
 }
 
 /**
